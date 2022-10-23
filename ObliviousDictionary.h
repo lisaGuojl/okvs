@@ -336,6 +336,50 @@ public:
 
 };
 
+class OBD4Tables : public OBDTables {
+private:
+    uint64_t firstSeed, secondSeed, thirdSeed, fourthSeed;
+    unordered_set<uint64_t, Hasher> first;
+    unordered_set<uint64_t, Hasher> second;
+    unordered_set<uint64_t, Hasher> third;
+    unordered_set<uint64_t, Hasher> fourth;
+
+
+    void handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3,unordered_set<uint64_t, Hasher> &other3);
+
+public:
+
+    OBD4Tables(int hashSize, double c1, int fieldSize, int gamma, int v);
+
+    void createSets() override;
+
+    void init() override;
+
+    void fillTables() override;
+
+    int peeling() override;
+
+    vector<uint64_t> dec(uint64_t key) override;
+
+    vector<uint64_t> decOptimized(uint64_t key) override;
+
+    vector<byte> decode(uint64_t key) override;
+
+    void generateExternalToolValues() override;
+
+    void unpeeling() override;
+
+    bool checkOutput() override;
+
+    bool hasLoop() override;
+
+    int getTableSize() override {return 4*tableRealSize + gamma;}
+
+};
+
 class StarDictionary : public ObliviousDictionary {
 private:
     vector<OBD3Tables*> bins;

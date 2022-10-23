@@ -65,25 +65,25 @@ bool OBDTables::encode(){
     duration = duration_cast<milliseconds>(t2-t1).count();
     cout << "peeling took in milliseconds: " << duration << endl;
 
-    t1 = high_resolution_clock::now();
-    generateExternalToolValues();
-    t2 = high_resolution_clock::now();
+    // t1 = high_resolution_clock::now();
+    // generateExternalToolValues();
+    // t2 = high_resolution_clock::now();
 
-    duration = duration_cast<milliseconds>(t2-t1).count();
-    cout << "calc equations took in milliseconds: " << duration << endl;
+    // duration = duration_cast<milliseconds>(t2-t1).count();
+    // cout << "calc equations took in milliseconds: " << duration << endl;
 
-    t1 = high_resolution_clock::now();
-    unpeeling();
+    // t1 = high_resolution_clock::now();
+    // unpeeling();
 
-    t2 = high_resolution_clock::now();
+    // t2 = high_resolution_clock::now();
 
-    duration = duration_cast<milliseconds>(t2 - t1).count();
-    cout << "unpeeling took in milliseconds: " << duration << endl;
+    // duration = duration_cast<milliseconds>(t2 - t1).count();
+    // cout << "unpeeling took in milliseconds: " << duration << endl;
 
-    auto end = high_resolution_clock::now();
+    // auto end = high_resolution_clock::now();
 
-    duration = duration_cast<milliseconds>(end - start).count();
-    cout << "encode took in milliseconds: " << duration << endl;
+    // duration = duration_cast<milliseconds>(end - start).count();
+    // cout << "encode took in milliseconds: " << duration << endl;
     return res;
 };
 
@@ -1039,9 +1039,6 @@ void OBD3Tables::generateExternalToolValues(){
 //    }
 }
 
-
-
-
 void OBD3Tables::unpeeling(){
 //    cout<<"in unpeeling"<<endl;
     uint64_t key;
@@ -1158,6 +1155,631 @@ bool OBD3Tables::hasLoop(){
     }
     return false;
 }
+
+
+
+// 4 hash funcs added
+OBD4Tables::OBD4Tables(int hashSize, double c1, int fieldSize, int gamma, int v) : OBDTables(hashSize, c1, fieldSize, gamma, v){
+
+    firstSeed = 1;
+    secondSeed = 2;
+    thirdSeed = 3;
+    fourthSeed = 4;
+
+    auto start = high_resolution_clock::now();
+    createSets();
+    auto end = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(end-start).count();
+
+//    cout << "time in milliseconds for create sets: " << duration << endl;
+//
+//
+
+    variables.resize(4*tableRealSize + gamma, to_GF2E(0));
+    sign.resize(4*tableRealSize, 0);
+
+}
+
+void OBD4Tables::createSets(){
+    double factorSize = c1/4;
+//    cout<<"factorSize = "<<factorSize<<endl;
+//    cout<<"items in set = "<<hashSize*factorSize<<endl;
+//    cout<<"items in 3 sets = "<<3*hashSize*factorSize<<endl;
+
+
+    first = unordered_set<uint64_t, Hasher>(hashSize*factorSize, Hasher(firstSeed));
+    second = unordered_set<uint64_t, Hasher>(hashSize*factorSize, Hasher(secondSeed));
+    third = unordered_set<uint64_t, Hasher>(hashSize*factorSize, Hasher(thirdSeed));
+    fourth = unordered_set<uint64_t, Hasher>(hashSize*factorSize, Hasher(fourthSeed));
+
+
+    tableRealSize = first.bucket_count();
+
+//    cout<<"tableRealSize in each bin = "<<tableRealSize<<endl;
+
+//    while(tableRealSize*3/c1 < hashSize){
+//        first = unordered_set<uint64_t, Hasher>(tableRealSize + 1, Hasher(firstSeed));
+//        second = unordered_set<uint64_t, Hasher>(tableRealSize + 1, Hasher(secondSeed));
+//        third = unordered_set<uint64_t, Hasher>(tableRealSize + 1, Hasher(thirdSeed));
+//
+//        tableRealSize = first.bucket_count();
+//            cout<<"tableRealSize = "<<tableRealSize<<endl;
+//    }
+
+    first.max_load_factor(4);
+    second.max_load_factor(4);
+    third.max_load_factor(4);
+    fourth.max_load_factor(4);
+
+//    hashSize = tableRealSize*3/c1;
+
+//        cout<<"new hashSize = "<<hashSize<<endl;
+}
+
+void OBD4Tables::init() {
+
+    OBDTables::init();
+    first.clear();
+    second.clear();
+    third.clear();
+    fourth.clear();
+}
+
+void OBD4Tables::fillTables(){
+
+    for (int i=0; i<hashSize; i++){
+
+        first.insert(keys[i]);
+        second.insert(keys[i]);
+        third.insert(keys[i]);
+        fourth.insert(keys[i]);
+
+    }
+
+}
+
+int OBD4Tables::peeling() {
+
+    peelingVector.resize(hashSize);
+    peelingCounter = 0;
+    int counterInLoop = 1;
+
+    queue<int> queueFirst;
+    queue<int> queueSecond;
+    queue<int> queueThird;
+    queue<int> queueFourth;
+
+//    cout << "in peeling" << endl;
+//    cout<<"first loop"<<endl;
+
+//    auto start = high_resolution_clock::now();
+
+    //Goes on the first hash
+    for (int position = 0; position < tableRealSize; position++) {
+        if (first.bucket_size(position) == 1) {
+            //Delete the vertex from the graph
+            auto key = *first.begin(position);
+//                cout << "remove key " << key << endl;
+            counterInLoop++;
+            peelingVector[peelingCounter++] = key;
+            first.erase(key);
+
+            //Update the second vertex on the edge
+            second.erase(key);
+            third.erase(key);
+            fourth.erase(key);
+        }
+    }
+
+    int bucketInd;
+    //Goes on the second has
+    for (int position = 0; position < tableRealSize; position++) {
+        if (second.bucket_size(position) == 1) {
+            //Delete the vertex from the graph
+            auto key = *second.begin(position);
+            second.erase(key);
+//                cout << "remove key " << key << endl;
+            counterInLoop++;
+            peelingVector[peelingCounter++] = key;
+
+            bucketInd = first.bucket(key);
+            first.erase(key);
+
+            if (first.bucket_size(bucketInd) == 1)
+                queueFirst.push(bucketInd);
+
+            //Update the second vertex on the edge
+            third.erase(key);
+            fourth.erase(key);
+        }
+    }
+
+    for (int position = 0; position < tableRealSize; position++) {
+        if (third.bucket_size(position) == 1) {
+            //Delete the vertex from the graph
+            auto key = *third.begin(position);
+            third.erase(key);
+//                cout << "remove key " << key << endl;
+            counterInLoop++;
+            peelingVector[peelingCounter++] = key;
+
+            bucketInd = first.bucket(key);
+            first.erase(key);
+
+            if (first.bucket_size(bucketInd) == 1)
+                queueFirst.push(bucketInd);
+
+            bucketInd = second.bucket(key);
+            second.erase(key);
+
+            if (second.bucket_size(bucketInd) == 1)
+                queueSecond.push(bucketInd);
+
+            fourth.erase(key);
+
+        }
+    }
+
+
+    for (int position = 0; position < tableRealSize; position++) {
+        if (fourth.bucket_size(position) == 1) {
+            //Delete the vertex from the graph
+            auto key = *fourth.begin(position);
+            fourth.erase(key);
+//                cout << "remove key " << key << endl;
+            counterInLoop++;
+            peelingVector[peelingCounter++] = key;
+
+            bucketInd = first.bucket(key);
+            first.erase(key);
+
+            if (first.bucket_size(bucketInd) == 1)
+                queueFirst.push(bucketInd);
+
+            bucketInd = second.bucket(key);
+            second.erase(key);
+
+            if (second.bucket_size(bucketInd) == 1)
+                queueSecond.push(bucketInd);
+
+            bucketInd = third.bucket(key);
+            third.erase(key);
+
+            if (third.bucket_size(bucketInd) == 1)
+                queueThird.push(bucketInd);
+
+        }
+    }
+
+//    end = high_resolution_clock::now();
+//    duration = duration_cast<milliseconds>(end-start).count();
+//       cout << "time in milliseconds for third peel: " << duration << endl;
+
+//       cout << "peelingCounter : " << peelingCounter << endl;
+//        cout << "hashSize : " << hashSize << endl;
+//
+//        cout << "queueFirst.size() : " << queueFirst.size() << endl;
+//        cout << "queueSecond.size() : " << queueSecond.size() << endl;
+//        cout << "queueThird.size() : " << queueThird.size() << endl;
+
+
+//    start = high_resolution_clock::now();
+    //handle the queues one by one
+    while (queueFirst.size() != 0 ||
+           queueSecond.size() != 0 ||
+           queueThird.size() != 0 ||
+           queueFourth.size() != 0) {
+
+        handleQueue(queueFirst, first, queueSecond, second, queueThird, third, queueFourth, fourth);
+
+        handleQueue(queueSecond, second, queueFirst, first, queueThird, third, queueFourth, fourth);
+
+        handleQueue(queueThird, third, queueFirst, first, queueSecond, second, queueFourth, fourth);
+
+        handleQueue(queueFourth, fourth, queueFirst, first, queueSecond, second, queueThird, third);
+
+    }
+
+//    end = high_resolution_clock::now();
+//    duration = duration_cast<milliseconds>(end-start).count();
+//      cout << "time in milliseconds for peel queues: " << duration << endl;
+
+    if (peelingCounter != hashSize) {
+    cout << "2 core contain : " << hashSize - peelingCounter << endl;
+    }
+    cout << "peelingCounter : " << peelingCounter << endl;
+    cout << "hashSize : " << hashSize << endl;
+
+
+    if(reportStatistics==1) {
+
+        statisticsFile << "" << ", \n";
+    }
+
+    if (hashSize - peelingCounter > v){
+        return 0; //Failure
+    }
+    else return 1;
+
+}
+
+void OBD4Tables::handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                                               queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                                               queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                                               queue<int> &queueOther3,unordered_set<uint64_t, Hasher> &other3) {
+
+    int bucketInd;
+    for(int i=0; i < queueMain.size(); i++){
+
+        int pos = queueMain.front();
+        queueMain.pop();
+        if(main.bucket_size(pos) == 1) {
+            auto key = *main.begin(pos);
+            main.erase(key);
+//                cout << "remove key " << key << endl;
+            peelingVector[peelingCounter++] = key;
+
+            bucketInd = other1.bucket(key);
+            other1.erase(key);
+
+            if (other1.bucket_size(bucketInd) == 1)
+                queueOther1.push(bucketInd);
+
+            bucketInd = other2.bucket(key);
+            other2.erase(key);
+
+            if (other2.bucket_size(bucketInd) == 1)
+                queueOther2.push(bucketInd);
+
+            bucketInd = other3.bucket(key);
+            other3.erase(key);
+
+            if (other3.bucket_size(bucketInd) == 1)
+                queueOther3.push(bucketInd);
+
+        }
+    }
+}
+
+
+
+// To do
+vector<uint64_t> OBD4Tables::dec(uint64_t key){
+
+//    auto keyIndices = indices[key];
+//    if(keyIndices.size() == 0) {
+    vector<uint64_t> keyIndices;
+    keyIndices.push_back(first.bucket(key));
+    keyIndices.push_back(tableRealSize + second.bucket(key));
+    keyIndices.push_back(2 * tableRealSize + third.bucket(key));
+
+    auto dhBits = getDHBits(key);
+    uint64_t mask = 1;
+    for (int j = 0; j < gamma; j++) {
+        if ((dhBits & mask) == 1) {
+            keyIndices.push_back(3 * tableRealSize + j); //put 1 in the right vertex of the edge
+        }
+        dhBits = dhBits >> 1;
+    }
+//        indices[key] = move(keyIndices);
+//    }
+
+    return keyIndices;
+}
+
+vector<uint64_t> OBD4Tables::decOptimized(uint64_t key){
+//    auto keyIndices = indices[key];
+//    if(keyIndices.size() == 0) {
+//        cout<<"first time"<<endl;
+    vector<uint64_t> keyIndices(11);
+    keyIndices[0] = first.bucket(key);
+    keyIndices[1] = tableRealSize + second.bucket(key);
+    keyIndices[2] = 2 * tableRealSize + third.bucket(key);
+
+    auto dhBits = getDHBits(key);
+    byte* dhBytes = (byte*) (&dhBits);
+    for (int j = 0; j < 8; j++) {
+        keyIndices[3 + j] = dhBytes[j]; //put 1 in the right vertex of the edge
+    }
+//        indices[key] = move(keyIndices);
+
+//    }
+
+    return keyIndices;
+}
+
+vector<byte> OBD4Tables::decode(uint64_t key){
+    auto indices = dec(key);
+
+    GF2E val(0);
+    for (int j=0; j<indices.size(); j++){
+        val += variables[indices[j]]; //put 1 in the right vertex of the edge
+
+    }
+
+    vector<byte> valBytes(fieldSizeBytes);
+    BytesFromGF2X(valBytes.data(), rep(val), fieldSizeBytes);
+
+    return valBytes;
+}
+
+void OBD4Tables::generateExternalToolValues(){
+
+
+    // the rows count is the number of edges left after peeling
+    //columns count is number of vertexes and gamma bits.
+
+    auto start = high_resolution_clock::now();
+    int matrixSize = hashSize - peelingCounter;
+    GF2EMatrix matrix(matrixSize);
+
+//    cout<<"num of rows = "<<matrixSize<<endl;
+//    cout<<"num of cols = "<<3*matrixSize + gamma<<endl;
+    GF2EVector values(matrixSize);
+
+    auto end = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(end-start).count();
+
+//    cout << "construct time in milliseconds for protocol: " << duration << endl;
+
+    unordered_map<uint64_t, int> firstTableCols;
+    unordered_map<uint64_t, int> secondTableCols;
+    unordered_map<uint64_t, int> thirdTableCols;
+
+//    cout<<"matrix:"<<endl;
+//    for (int i=0; i<first.size(); i++){
+//        for (int j=0; j<2*tableRealSize+gamma; j++){
+//            cout<<matrix[i][j]<<" ";
+//        }
+//        cout<<endl;
+//    }
+    //Get all the edges that are in the graph's circles and calc the polynomial values that should be for them.
+
+//    start = high_resolution_clock::now();
+    int rowCounter = 0;
+    int firstColsCounter = 0;
+    int secondColsCounter = 0;
+    int thirdColsCounter = 0;
+
+    int firstPos, secondPos, thirdPos;
+    for (int i=0; i<tableRealSize; i++){
+        if (first.bucket_size(i) > 1){
+            for (auto key = first.begin(i); key!= first.end(i); ++key){
+
+                matrix[rowCounter].resize(3*matrixSize+gamma);
+                if (firstTableCols.find(i) == firstTableCols.end()){
+                    firstTableCols.insert({i, firstColsCounter});
+                    firstColsCounter++;
+                }
+
+                int secondIndex = second.bucket(*key);
+                if (secondTableCols.find(secondIndex) == secondTableCols.end()){
+                    secondTableCols.insert({secondIndex, secondColsCounter});
+                    secondColsCounter++;
+
+                }
+                int thirdIndex = third.bucket(*key);
+                if (thirdTableCols.find(thirdIndex) == thirdTableCols.end()){
+                    thirdTableCols.insert({thirdIndex, thirdColsCounter});
+                    thirdColsCounter++;
+
+                }
+                firstPos = firstTableCols[i];
+                secondPos = secondTableCols[secondIndex];
+                thirdPos = thirdTableCols[thirdIndex];
+//                cout<<"key "<<*key<<" first hash val = "<<i<< "and index "<<firstTableCols[i]<<" in the first cols"<<endl;
+//                cout<<"key "<<*key<<" second hash val = "<<secondIndex<<"and index "<<secondTableCols[secondIndex]<<" in the second cols"<<endl;
+
+
+                matrix[rowCounter][firstPos] = to_GF2E(1); //put 1 in the left vertex of the edge
+                matrix[rowCounter][matrixSize + secondPos] = to_GF2E(1); //put 1 in the right vertex of the edge
+                matrix[rowCounter][2*matrixSize + thirdPos] = to_GF2E(1); //put 1 in the right vertex of the edge
+                sign[i] = 1;
+                sign[tableRealSize + secondIndex] = 1;
+                sign[2*tableRealSize + thirdIndex] = 1;
+
+                auto dhBits = getDHBits(*key);
+//                cout<<"DH bits: "<<dhBits<<endl;
+                uint64_t mask = 1;
+                for (int j=0; j<gamma; j++){
+//                    cout<<(dhBits & mask)<<" ";
+                    matrix[rowCounter][ 3*matrixSize + j] = to_GF2E(dhBits & mask); //put 1 in the right vertex of the edge
+                    dhBits = dhBits >> 1;
+
+                }
+//                cout<<endl;
+                values[rowCounter] = vals[*key];
+                rowCounter++;
+
+            }
+        }
+    }
+
+//    end = high_resolution_clock::now();
+//    duration = duration_cast<milliseconds>(end-start).count();
+//
+//    cout << "fill time in milliseconds: " << duration << endl;
+
+//    cout<<"matrix:"<<endl;
+//    for (int i=0; i<rowCounter; i++){
+//        for (int j=0; j<2*rowCounter+gamma; j++){
+//            cout<<matrix[i][j]<<" ";
+//        }
+//        cout<<endl;
+//    }
+
+//    cout<<"num of equations =  "<<rowCounter<<endl;
+
+    if(reportStatistics==1) {
+
+        statisticsFile << rowCounter << ", \n";
+    }
+
+//    start = high_resolution_clock::now();
+
+    GF2EVector variablesSlim(3*matrixSize + gamma);
+    //TODO call the solver and get the results in variables
+    solve_api(matrix, values, variablesSlim, fieldSize);
+
+//    end = high_resolution_clock::now();
+//    duration = duration_cast<milliseconds>(end-start).count();
+//
+//    cout << "solver time in milliseconds: " << duration << endl;
+
+//    start = high_resolution_clock::now();
+    for (int i=0; i<tableRealSize; i++) {
+        if (first.bucket_size(i) > 1) {
+            for (auto key = first.begin(i); key != first.end(i); ++key) {
+
+                int secondIndex = second.bucket(*key);
+                int thirdIndex = third.bucket(*key);
+                variables[i] = variablesSlim[firstTableCols[i]];
+                variables[tableRealSize + secondIndex] = variablesSlim[matrixSize + secondTableCols[secondIndex]];
+                variables[2*tableRealSize + thirdIndex] = variablesSlim[2*matrixSize + thirdTableCols[thirdIndex]];
+
+
+            }
+        }
+    }
+
+    for (int i=0; i<gamma; i++){
+        variables[3*tableRealSize + i] = variablesSlim[3*matrixSize + i];
+    }
+
+//    end = high_resolution_clock::now();
+//    duration = duration_cast<milliseconds>(end-start).count();
+//
+//    cout << "receive solver variables took: " << duration << endl;
+
+
+//    cout<<"variables:"<<endl;
+//    for (int i=0; i<variables.size(); i++){
+//        cout<<"variable["<<i<<"] = "<<variables[i]<<endl;
+//    }
+}
+
+void OBD4Tables::unpeeling(){
+//    cout<<"in unpeeling"<<endl;
+    uint64_t key;
+    byte* randomVal;
+    GF2E dhBitsVal;
+    GF2X temp;
+
+    while (peelingCounter > 0){
+//            cout<<"key = "<<key<<endl;
+        key = peelingVector[--peelingCounter];
+        auto indices = dec(key);
+//cout<<"indices = "<<endl;
+//for (int i=0; i<indices.size(); i++){
+//    cout<<indices[i]<<" ";
+//}
+//cout<<endl;
+        dhBitsVal = 0;
+        for (int j=3; j<indices.size(); j++){
+            dhBitsVal += variables[indices[j]]; //put 1 in the right vertex of the edge
+
+//            cout<<"variable in "<<indices[j]<<" place = "<<variables[2*tableRealSize+ indices[j]]<<endl;
+        }
+        if (variables[indices[0]] == 0 && sign[indices[0]] == 0){
+
+            if (variables[indices[1]] == 0 && sign[indices[1]] == 0){
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r ,fieldSizeBytes);
+                variables[indices[1]] = to_GF2E(temp);
+            }
+
+            if (variables[indices[2]] == 0 && sign[indices[2]] == 0) {
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r, fieldSizeBytes);
+                variables[indices[2]] = to_GF2E(temp);
+            }
+
+            variables[indices[0]] = vals[key] + variables[indices[1]] + variables[indices[2]] + dhBitsVal;
+
+//                cout<<"set RANDOM value "<<variables[indices[0]]<<" in index "<<indices[0]<<endl;
+        } else if (variables[indices[1]] == 0 && sign[indices[1]] == 0){
+
+            if (variables[indices[2]] == 0 && sign[indices[2]] == 0) {
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r, fieldSizeBytes);
+                variables[indices[2]] = to_GF2E(temp);
+            }
+
+            variables[indices[1]] = vals[key] + variables[indices[0]] + variables[indices[2]] + dhBitsVal;
+
+        } else if  (variables[indices[2]] == 0 && sign[indices[2]] == 0){
+            variables[indices[2]] = vals[key] + variables[indices[0]] + variables[indices[1]] + dhBitsVal;
+        }
+    }
+//    cout<<"peelingCounter = "<<peelingCounter<<endl;
+
+//    cout<<"variables:"<<endl;
+//    for (int i=0; i<variables.size(); i++){
+//        cout<<"variable["<<i<<"] = "<<variables[i]<<" ";
+//    }
+//    cout<<endl;
+}
+
+bool OBD4Tables::checkOutput(){
+    uint64_t key;
+    GF2E val, dhBitsVal;
+    bool error = false;
+
+
+    for (int i=0; i<hashSize; i++){
+        key = keys[i];
+        val = vals[key];
+
+        auto indices = dec(key);
+
+        dhBitsVal = 0;
+        for (int j=3; j<indices.size(); j++){
+            dhBitsVal += variables[indices[j]]; //put 1 in the right vertex of the edge
+
+        }
+
+        if ((variables[indices[0]] + variables[indices[1]] +  variables[indices[2]] + dhBitsVal) == val) {
+//            if (i%100000 == 0)
+//                cout<<"good value!!! val = "<<val<<endl;
+        } else {//if (!hasLoop()){
+            error = true;
+            cout<<"invalid value :( val = "<<val<<" wrong val = "<<(variables[indices[0]] + variables[indices[1]] + variables[indices[2]] + dhBitsVal)<<endl;
+            cout<<"variables["<<indices[0]<<"] = "<<variables[indices[0]]<<endl;
+            cout<<"variables["<<indices[1]<<"] = "<<variables[indices[1]]<<endl;
+            cout<<"variables["<<indices[2]<<"] = "<<variables[indices[2]]<<endl;
+            cout<<"dhBitsVal = "<<dhBitsVal<<endl;
+        }
+
+    }
+    if (!error){
+        cout<<"success!!!! dictionary is fine."<<endl;
+    }
+    return error;
+}
+
+bool OBD4Tables::hasLoop(){
+    for (int position = 0; position<tableRealSize; position++) {
+        if (first.bucket_size(position) > 1) {
+            return true;
+        }
+    }
+    return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
 
 StarDictionary::StarDictionary(int numItems, double c1, double c2, int q, int fieldSize, int gamma, int v, int numThreads) : ObliviousDictionary(numItems, fieldSize, gamma, v), q(q) {
 

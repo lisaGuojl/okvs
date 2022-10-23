@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
         values[(i+1)*fieldSizeBytes-1] = values[(i+1)*fieldSizeBytes-1]  >> zeroBits;
     }
 
-    ObliviousDictionary* dic = new OBD3Tables(hashSize, c1, fieldSize, gamma, v);
+    ObliviousDictionary* dic = new OBD4Tables(hashSize, c1, fieldSize, gamma, v);
     dic->init();
     dic->setKeysAndVals(keys, values);
     dic->encode();
