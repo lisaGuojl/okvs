@@ -1,0 +1,3 @@
+/home/gjl/psi/OBDBasedPSI/CMakeFiles/OBDBasedPSI.dir
+/home/gjl/psi/OBDBasedPSI/CMakeFiles/edit_cache.dir
+/home/gjl/psi/OBDBasedPSI/CMakeFiles/rebuild_cache.dir
