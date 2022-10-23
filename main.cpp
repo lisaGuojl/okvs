@@ -10,7 +10,7 @@
 typedef unsigned char byte;
 
 int main(int argc, char* argv[]) {
-    int hashSize=100, fieldSize=65, gamma = 60, v=20;
+    int hashSize=pow(2,20), fieldSize=65, gamma = 60, v=20;
     double c1 = 1.3;
     vector<uint64_t> keys;
     vector<byte> values;
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
     ObliviousDictionary* dic = new OBD3Tables(hashSize, c1, fieldSize, gamma, v);
     dic->init();
     dic->setKeysAndVals(keys, values);
-    // dic->encode();
+    dic->encode();
 
     // std::cout << "Starting decode" << ' ';
 

@@ -283,6 +283,9 @@ int OBD2Tables::peeling(){
     }
 
     cout<<"peelingCounter = "<<peelingCounter<<endl;
+    cout<<"TwocoreCounter = " << hashSize - peelingCounter <<endl;
+    cout<<"TotalCounter = " << hashSize<<endl;
+    
 
     if (hashSize - peelingCounter > v){
         return 0; //Failure
@@ -833,7 +836,8 @@ int OBD3Tables::peeling() {
     if (peelingCounter != hashSize) {
     cout << "2 core contain : " << hashSize - peelingCounter << endl;
     }
-//        cout << "hashSize : " << hashSize << endl;
+    cout << "peelingCounter : " << peelingCounter << endl;
+    cout << "hashSize : " << hashSize << endl;
 
 
     if(reportStatistics==1) {

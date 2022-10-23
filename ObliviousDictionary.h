@@ -69,15 +69,15 @@ public:
          GF2X temp;
          for (int i=0; i < hashSize; i++){
 
-        for (int j=0; j<fieldSizeBytes; j++){
-            cout<<"val in bytes = "<<(int)(values[i*fieldSizeBytes + j]) << " ";
-        }
-        cout<<endl;
+        // for (int j=0; j<fieldSizeBytes; j++){
+        //     cout<<"val in bytes = "<<(int)(values[i*fieldSizeBytes + j]) << " ";
+        // }
+        // cout<<endl;
 
              GF2XFromBytes(temp, values.data() + i*fieldSizeBytes ,fieldSizeBytes);
              vals.insert({keys[i], to_GF2E(temp)});
-        auto tempval = to_GF2E(temp);
-        cout<<"val in GF2E = "<<tempval<<endl;
+        // auto tempval = to_GF2E(temp);
+        // cout<<"val in GF2E = "<<tempval<<endl;
 
 //        vector<byte> tempvec(fieldSizeBytes);
 //        BytesFromGF2X(tempvec.data(), rep(tempval), fieldSizeBytes);
