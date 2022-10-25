@@ -65,25 +65,25 @@ bool OBDTables::encode(){
     duration = duration_cast<milliseconds>(t2-t1).count();
     cout << "peeling took in milliseconds: " << duration << endl;
 
-    // t1 = high_resolution_clock::now();
-    // generateExternalToolValues();
-    // t2 = high_resolution_clock::now();
+    t1 = high_resolution_clock::now();
+    generateExternalToolValues();
+    t2 = high_resolution_clock::now();
 
-    // duration = duration_cast<milliseconds>(t2-t1).count();
-    // cout << "calc equations took in milliseconds: " << duration << endl;
+    duration = duration_cast<milliseconds>(t2-t1).count();
+    cout << "calc equations took in milliseconds: " << duration << endl;
 
-    // t1 = high_resolution_clock::now();
-    // unpeeling();
+    t1 = high_resolution_clock::now();
+    unpeeling();
 
-    // t2 = high_resolution_clock::now();
+    t2 = high_resolution_clock::now();
 
-    // duration = duration_cast<milliseconds>(t2 - t1).count();
-    // cout << "unpeeling took in milliseconds: " << duration << endl;
+    duration = duration_cast<milliseconds>(t2 - t1).count();
+    cout << "unpeeling took in milliseconds: " << duration << endl;
 
-    // auto end = high_resolution_clock::now();
+    auto end = high_resolution_clock::now();
 
-    // duration = duration_cast<milliseconds>(end - start).count();
-    // cout << "encode took in milliseconds: " << duration << endl;
+    duration = duration_cast<milliseconds>(end - start).count();
+    cout << "encode took in milliseconds: " << duration << endl;
     return res;
 };
 
@@ -110,7 +110,8 @@ void OBD2Tables::createSets(){
     second = unordered_set<uint64_t, Hasher>(hashSize*factorSize, Hasher(secondSeed));
 
     tableRealSize = first.bucket_count();
-    cout<<"tableRealSize = "<<tableRealSize<<endl;
+    cout<<"1sttableRealSize = "<<tableRealSize<<endl;
+    cout<<"2ndtableRealSize = "<<second.bucket_count()<<endl;
 
 //    while(tableRealSize/1.2 < hashSize){
 //        first = unordered_set<uint64_t, Hasher>(tableRealSize + 1, Hasher(firstSeed));
@@ -188,6 +189,7 @@ vector<byte> OBD2Tables::decode(uint64_t key){
 }
 
 void OBD2Tables::fillTables(){
+    
 
     for (int i=0; i<hashSize; i++){
 
@@ -337,6 +339,7 @@ void OBD2Tables::generateExternalToolValues(){
     int firstPos, secondPos;
     for (int i=0; i<tableRealSize; i++){
         if (first.bucket_size(i) > 1){
+            cout << "!!!!!!!" << endl;
             for (auto key = first.begin(i); key!= first.end(i); ++key){
 
                 matrix[rowCounter].resize(2*matrixSize+gamma);
@@ -1452,12 +1455,13 @@ vector<uint64_t> OBD4Tables::dec(uint64_t key){
     keyIndices.push_back(first.bucket(key));
     keyIndices.push_back(tableRealSize + second.bucket(key));
     keyIndices.push_back(2 * tableRealSize + third.bucket(key));
+    keyIndices.push_back(3 * tableRealSize + fourth.bucket(key));
 
     auto dhBits = getDHBits(key);
     uint64_t mask = 1;
     for (int j = 0; j < gamma; j++) {
         if ((dhBits & mask) == 1) {
-            keyIndices.push_back(3 * tableRealSize + j); //put 1 in the right vertex of the edge
+            keyIndices.push_back(4 * tableRealSize + j); //put 1 in the right vertex of the edge
         }
         dhBits = dhBits >> 1;
     }
@@ -1475,11 +1479,12 @@ vector<uint64_t> OBD4Tables::decOptimized(uint64_t key){
     keyIndices[0] = first.bucket(key);
     keyIndices[1] = tableRealSize + second.bucket(key);
     keyIndices[2] = 2 * tableRealSize + third.bucket(key);
+    keyIndices[3] = 3 * tableRealSize + fourth.bucket(key);
 
     auto dhBits = getDHBits(key);
     byte* dhBytes = (byte*) (&dhBits);
     for (int j = 0; j < 8; j++) {
-        keyIndices[3 + j] = dhBytes[j]; //put 1 in the right vertex of the edge
+        keyIndices[4 + j] = dhBytes[j]; //put 1 in the right vertex of the edge
     }
 //        indices[key] = move(keyIndices);
 
@@ -1525,6 +1530,7 @@ void OBD4Tables::generateExternalToolValues(){
     unordered_map<uint64_t, int> firstTableCols;
     unordered_map<uint64_t, int> secondTableCols;
     unordered_map<uint64_t, int> thirdTableCols;
+    unordered_map<uint64_t, int> fourthTableCols;
 
 //    cout<<"matrix:"<<endl;
 //    for (int i=0; i<first.size(); i++){
@@ -1540,8 +1546,9 @@ void OBD4Tables::generateExternalToolValues(){
     int firstColsCounter = 0;
     int secondColsCounter = 0;
     int thirdColsCounter = 0;
+    int fourthColsCounter = 0;
 
-    int firstPos, secondPos, thirdPos;
+    int firstPos, secondPos, thirdPos, fourthPos;
     for (int i=0; i<tableRealSize; i++){
         if (first.bucket_size(i) > 1){
             for (auto key = first.begin(i); key!= first.end(i); ++key){
@@ -1564,9 +1571,17 @@ void OBD4Tables::generateExternalToolValues(){
                     thirdColsCounter++;
 
                 }
+                int fourthIndex = fourth.bucket(*key);
+                if (fourthTableCols.find(fourthIndex) == fourthTableCols.end()){
+                    fourthTableCols.insert({fourthIndex, fourthColsCounter});
+                    fourthColsCounter++;
+
+                }
+
                 firstPos = firstTableCols[i];
                 secondPos = secondTableCols[secondIndex];
                 thirdPos = thirdTableCols[thirdIndex];
+                fourthPos = fourthTableCols[fourthIndex];
 //                cout<<"key "<<*key<<" first hash val = "<<i<< "and index "<<firstTableCols[i]<<" in the first cols"<<endl;
 //                cout<<"key "<<*key<<" second hash val = "<<secondIndex<<"and index "<<secondTableCols[secondIndex]<<" in the second cols"<<endl;
 
@@ -1574,16 +1589,18 @@ void OBD4Tables::generateExternalToolValues(){
                 matrix[rowCounter][firstPos] = to_GF2E(1); //put 1 in the left vertex of the edge
                 matrix[rowCounter][matrixSize + secondPos] = to_GF2E(1); //put 1 in the right vertex of the edge
                 matrix[rowCounter][2*matrixSize + thirdPos] = to_GF2E(1); //put 1 in the right vertex of the edge
+                matrix[rowCounter][3*matrixSize + fourthPos] = to_GF2E(1); //put 1 in the right vertex of the edge
                 sign[i] = 1;
                 sign[tableRealSize + secondIndex] = 1;
                 sign[2*tableRealSize + thirdIndex] = 1;
+                sign[3*tableRealSize + fourthIndex] = 1;
 
                 auto dhBits = getDHBits(*key);
 //                cout<<"DH bits: "<<dhBits<<endl;
                 uint64_t mask = 1;
                 for (int j=0; j<gamma; j++){
 //                    cout<<(dhBits & mask)<<" ";
-                    matrix[rowCounter][ 3*matrixSize + j] = to_GF2E(dhBits & mask); //put 1 in the right vertex of the edge
+                    matrix[rowCounter][ 4*matrixSize + j] = to_GF2E(dhBits & mask); //put 1 in the right vertex of the edge
                     dhBits = dhBits >> 1;
 
                 }
@@ -1675,7 +1692,8 @@ void OBD4Tables::unpeeling(){
 //}
 //cout<<endl;
         dhBitsVal = 0;
-        for (int j=3; j<indices.size(); j++){
+        // j=4????????????????
+        for (int j=4; j<indices.size(); j++){
             dhBitsVal += variables[indices[j]]; //put 1 in the right vertex of the edge
 
 //            cout<<"variable in "<<indices[j]<<" place = "<<variables[2*tableRealSize+ indices[j]]<<endl;
@@ -1700,7 +1718,16 @@ void OBD4Tables::unpeeling(){
                 variables[indices[2]] = to_GF2E(temp);
             }
 
-            variables[indices[0]] = vals[key] + variables[indices[1]] + variables[indices[2]] + dhBitsVal;
+            if (variables[indices[3]] == 0 && sign[indices[3]] == 0) {
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r, fieldSizeBytes);
+                variables[indices[3]] = to_GF2E(temp);
+            }
+
+            variables[indices[0]] = vals[key] + variables[indices[1]] + variables[indices[2]] + variables[indices[3]] + dhBitsVal;
 
 //                cout<<"set RANDOM value "<<variables[indices[0]]<<" in index "<<indices[0]<<endl;
         } else if (variables[indices[1]] == 0 && sign[indices[1]] == 0){
@@ -1714,10 +1741,29 @@ void OBD4Tables::unpeeling(){
                 variables[indices[2]] = to_GF2E(temp);
             }
 
-            variables[indices[1]] = vals[key] + variables[indices[0]] + variables[indices[2]] + dhBitsVal;
+            if (variables[indices[3]] == 0 && sign[indices[3]] == 0) {
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r, fieldSizeBytes);
+                variables[indices[3]] = to_GF2E(temp);
+            }
+
+            variables[indices[1]] = vals[key] + variables[indices[0]] + variables[indices[2]] + variables[indices[3]] + dhBitsVal;
 
         } else if  (variables[indices[2]] == 0 && sign[indices[2]] == 0){
-            variables[indices[2]] = vals[key] + variables[indices[0]] + variables[indices[1]] + dhBitsVal;
+            if (variables[indices[3]] == 0 && sign[indices[3]] == 0) {
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r, fieldSizeBytes);
+                variables[indices[3]] = to_GF2E(temp);
+            }
+            variables[indices[2]] = vals[key] + variables[indices[0]] + variables[indices[1]] + variables[indices[3]] + dhBitsVal;
+        } else if  (variables[indices[3]] == 0 && sign[indices[3]] == 0){
+            variables[indices[3]] = vals[key] + variables[indices[0]] + variables[indices[1]] + variables[indices[2]] + dhBitsVal;
         }
     }
 //    cout<<"peelingCounter = "<<peelingCounter<<endl;
@@ -1742,20 +1788,22 @@ bool OBD4Tables::checkOutput(){
         auto indices = dec(key);
 
         dhBitsVal = 0;
-        for (int j=3; j<indices.size(); j++){
+        // j=4 ??????????
+        for (int j=4; j<indices.size(); j++){
             dhBitsVal += variables[indices[j]]; //put 1 in the right vertex of the edge
 
         }
 
-        if ((variables[indices[0]] + variables[indices[1]] +  variables[indices[2]] + dhBitsVal) == val) {
+        if ((variables[indices[0]] + variables[indices[1]] +  variables[indices[2]] +  variables[indices[3]] + dhBitsVal) == val) {
 //            if (i%100000 == 0)
 //                cout<<"good value!!! val = "<<val<<endl;
         } else {//if (!hasLoop()){
             error = true;
-            cout<<"invalid value :( val = "<<val<<" wrong val = "<<(variables[indices[0]] + variables[indices[1]] + variables[indices[2]] + dhBitsVal)<<endl;
+            cout<<"invalid value :( val = "<<val<<" wrong val = "<<(variables[indices[0]] + variables[indices[1]] + variables[indices[2]] + variables[indices[3]] + dhBitsVal)<<endl;
             cout<<"variables["<<indices[0]<<"] = "<<variables[indices[0]]<<endl;
             cout<<"variables["<<indices[1]<<"] = "<<variables[indices[1]]<<endl;
             cout<<"variables["<<indices[2]<<"] = "<<variables[indices[2]]<<endl;
+            cout<<"variables["<<indices[3]<<"] = "<<variables[indices[3]]<<endl;
             cout<<"dhBitsVal = "<<dhBitsVal<<endl;
         }
 
