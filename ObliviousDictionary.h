@@ -41,7 +41,7 @@ protected:
     unordered_map<uint64_t, GF2E> vals;
 //    vector<vector<uint64_t>> indices;
 
-    int reportStatistics=0;
+    int reportStatistics=1;
     ofstream statisticsFile;
 
     GF2EVector variables;

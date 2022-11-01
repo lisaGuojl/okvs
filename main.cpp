@@ -21,6 +21,7 @@ int main(int argc, char* argv[]) {
 
     for (int i=0; i < hashSize; i++){
         keys[i] = i;//prg.getRandom64();
+        //keys[i] = prg.getRandom64();
     }
     for (int j=0; j < hashSize*fieldSizeBytes; j++){
         char x = 'a';
@@ -31,6 +32,7 @@ int main(int argc, char* argv[]) {
     }
 
     ObliviousDictionary* dic = new OBD2Tables(hashSize, c1, fieldSize, gamma, v);
+    // dic->setReportStatstics(1);
     dic->init();
     dic->setKeysAndVals(keys, values);
     dic->encode();

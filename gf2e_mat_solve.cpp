@@ -18,10 +18,12 @@ void initField(int fieldSize){
 
 int solve_api(const GF2EMatrix & A, const GF2EVector & B, GF2EVector & X, int fieldSize) {
 
-    typedef LinBox::NTL_GF2E Field;
+  cout << "Start solver"  <<endl;
+  typedef LinBox::NTL_GF2E Field;
 	Field F(2, fieldSize);
 
 	size_t rows = A.size();
+  cout << "Rows: " << rows <<endl;
 	if(0 == rows) {
 		return -__LINE__;
 	}
@@ -38,6 +40,7 @@ int solve_api(const GF2EMatrix & A, const GF2EVector & B, GF2EVector & X, int fi
 			mA.setEntry(i, j, A[i][j]);
 		}
 	}
+  cout << "Complete mA."  <<endl;
 
 	DenseVector<Field> vB(F, rows);
 
@@ -46,9 +49,11 @@ int solve_api(const GF2EMatrix & A, const GF2EVector & B, GF2EVector & X, int fi
 	while(i != vB.end() && j != B.end()) {
 		*i++ = *j++;
 	}
+  cout << "Complete vB."  <<endl;
 
 	DenseVector<Field> vX(F, cols);
 
+  
 	solve(vX, mA, vB, Method::SparseElimination());
 
 	X.resize(cols);
