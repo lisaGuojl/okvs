@@ -11,7 +11,7 @@ typedef unsigned char byte;
 
 int main(int argc, char* argv[]) {
     int hashSize=pow(2,20), fieldSize=65, gamma = 60, v=20;
-    double c1 = 2.4;
+    double c1 = 1.2;
     vector<uint64_t> keys;
     vector<byte> values;
     keys.resize(hashSize);
@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
     values.resize(hashSize*fieldSizeBytes);
 
     for (int i=0; i < hashSize; i++){
-        keys[i] = i;//prg.getRandom64();
+        keys[i] = i+100;//prg.getRandom64();
     }
     for (int j=0; j < hashSize*fieldSizeBytes; j++){
         char x = 'a';
@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
         values[(i+1)*fieldSizeBytes-1] = values[(i+1)*fieldSizeBytes-1]  >> zeroBits;
     }
 
-    ObliviousDictionary* dic = new OBD2Tables(hashSize, c1, fieldSize, gamma, v);
+    ObliviousDictionary* dic = new OBD4Tables(hashSize, c1, fieldSize, gamma, v);
     dic->init();
     dic->setKeysAndVals(keys, values);
     dic->encode();

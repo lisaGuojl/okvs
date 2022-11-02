@@ -357,8 +357,8 @@ void OBD2Tables::generateExternalToolValues(){
                 }
                 firstPos = firstTableCols[i];
                 secondPos = secondTableCols[secondIndex];
-//                cout<<"key "<<*key<<" first hash val = "<<i<< "and index "<<firstTableCols[i]<<" in the first cols"<<endl;
-//                cout<<"key "<<*key<<" second hash val = "<<secondIndex<<"and index "<<secondTableCols[secondIndex]<<" in the second cols"<<endl;
+                // cout<<"key "<<*key<<" first hash val = "<<i<< "and index "<<firstTableCols[i]<<" in the first cols"<<endl;
+                // cout<<"key "<<*key<<" second hash val = "<<secondIndex<<"and index "<<secondTableCols[secondIndex]<<" in the second cols"<<endl;
 
 
                 matrix[rowCounter][firstPos] = to_GF2E(1); //put 1 in the left vertex of the edge
