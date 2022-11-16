@@ -696,19 +696,21 @@ vector<byte> OBD3Tables::decode(uint64_t key){
 
 void OBD3Tables::fillTables(){
 
-    for (int i=0; i<hashSize; i++){
+    // for (int i=0; i<hashSize; i++){
+    //     first.insert(keys[i]);
+    //     second.insert(keys[i]);
+    //     third.insert(keys[i]);
+    // }
 
-//            cout<<"key is "<<keys[i]<<endl;
-//        auto pair = first.insert(keys[i]);
+    for (int i=0; i<378652; i++){
+        first.insert(keys[i]);
+        second.insert(keys[i]);
+    }
+
+    for (int i=378652; i<hashSize; i++){
         first.insert(keys[i]);
         second.insert(keys[i]);
         third.insert(keys[i]);
-
-//        cout<<"first bucket = "<<first.bucket(keys[i])<<" second bucket = "<<second.bucket(keys[i])<<" third bucket = "<<third.bucket(keys[i])<<endl;
-
-//        if (pair.second == false){
-//            cout<<"key = "<<keys[i]<<" i = "<<i<<endl;
-//        }
     }
 
 
