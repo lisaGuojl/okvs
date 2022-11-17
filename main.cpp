@@ -11,7 +11,7 @@ typedef unsigned char byte;
 
 int main(int argc, char* argv[]) {
     int hashSize=pow(2,20), fieldSize=65, gamma = 60, v=20;
-    double c1 = 1.24;
+    double c1 = 1.3;
     vector<uint64_t> keys;
     vector<byte> values;
     keys.resize(hashSize);
