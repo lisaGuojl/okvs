@@ -697,19 +697,28 @@ vector<byte> OBD3Tables::decode(uint64_t key){
 void OBD3Tables::fillTables(){
 
     for (int i=0; i<hashSize; i++){
-
-//            cout<<"key is "<<keys[i]<<endl;
-//        auto pair = first.insert(keys[i]);
         first.insert(keys[i]);
         second.insert(keys[i]);
         third.insert(keys[i]);
+    }
+    cout << "tableRealSize: " << first.bucket_count()+second.bucket_count()+third.bucket_count() << endl;
+
+    // for (int i=0; i<393216; i++){
+    //     first.insert(keys[i]);
+    //     second.insert(keys[i]);
+    // }
+    // for (int i=393216; i<hashSize; i++){
+    //     first.insert(keys[i]);
+    //     second.insert(keys[i]);
+    //     third.insert(keys[i]);
+    // }
 
 //        cout<<"first bucket = "<<first.bucket(keys[i])<<" second bucket = "<<second.bucket(keys[i])<<" third bucket = "<<third.bucket(keys[i])<<endl;
 
 //        if (pair.second == false){
 //            cout<<"key = "<<keys[i]<<" i = "<<i<<endl;
 //        }
-    }
+    
 
 
 //        cout << "first set contains " << first.size() << endl;
@@ -1197,6 +1206,7 @@ void OBD4Tables::createSets(){
 
 
     tableRealSize = first.bucket_count();
+    
 
 //    cout<<"tableRealSize in each bin = "<<tableRealSize<<endl;
 
@@ -1209,10 +1219,10 @@ void OBD4Tables::createSets(){
 //            cout<<"tableRealSize = "<<tableRealSize<<endl;
 //    }
 
-    first.max_load_factor(4);
-    second.max_load_factor(4);
-    third.max_load_factor(4);
-    fourth.max_load_factor(4);
+    first.max_load_factor(10);
+    second.max_load_factor(10);
+    third.max_load_factor(10);
+    fourth.max_load_factor(10);
 
 //    hashSize = tableRealSize*3/c1;
 
@@ -1238,6 +1248,7 @@ void OBD4Tables::fillTables(){
         fourth.insert(keys[i]);
 
     }
+    cout << "tableRealSize: " << first.bucket_count()+second.bucket_count()+third.bucket_count()+fourth.bucket_count() << endl;
 
 }
 
@@ -1387,6 +1398,11 @@ int OBD4Tables::peeling() {
 //    duration = duration_cast<milliseconds>(end-start).count();
 //      cout << "time in milliseconds for peel queues: " << duration << endl;
 
+     for (int position = 0; position < tableRealSize; position++) {
+        if (first.bucket_size(position) == 1 || second.bucket_size(position) == 1 || third.bucket_size(position) == 1 || fourth.bucket_size(position) == 1) {
+            cout << "Fail!!!!" <<endl;
+        }
+     }
     if (peelingCounter != hashSize) {
     cout << "2 core contain : " << hashSize - peelingCounter << endl;
     }
