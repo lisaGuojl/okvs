@@ -55,7 +55,7 @@ bool OBDTables::encode(){
     auto t2 = high_resolution_clock::now();
 
     auto duration = duration_cast<milliseconds>(t2-t1).count();
-    cout << "fillTables took in milliseconds: " << duration << endl;
+    // cout << "fillTables took in milliseconds: " << duration << endl;
 
     t1 = high_resolution_clock::now();
     auto res = peeling();
@@ -63,27 +63,27 @@ bool OBDTables::encode(){
     t2 = high_resolution_clock::now();
 
     duration = duration_cast<milliseconds>(t2-t1).count();
-    cout << "peeling took in milliseconds: " << duration << endl;
+    // cout << "peeling took in milliseconds: " << duration << endl;
 
-    t1 = high_resolution_clock::now();
-    generateExternalToolValues();
-    t2 = high_resolution_clock::now();
+    // t1 = high_resolution_clock::now();
+    // generateExternalToolValues();
+    // t2 = high_resolution_clock::now();
 
-    duration = duration_cast<milliseconds>(t2-t1).count();
-    cout << "calc equations took in milliseconds: " << duration << endl;
+    // duration = duration_cast<milliseconds>(t2-t1).count();
+    // cout << "calc equations took in milliseconds: " << duration << endl;
 
-    t1 = high_resolution_clock::now();
-    unpeeling();
+    // t1 = high_resolution_clock::now();
+    // unpeeling();
 
-    t2 = high_resolution_clock::now();
+    // t2 = high_resolution_clock::now();
 
-    duration = duration_cast<milliseconds>(t2 - t1).count();
-    cout << "unpeeling took in milliseconds: " << duration << endl;
+    // duration = duration_cast<milliseconds>(t2 - t1).count();
+    // cout << "unpeeling took in milliseconds: " << duration << endl;
 
     auto end = high_resolution_clock::now();
 
     duration = duration_cast<milliseconds>(end - start).count();
-    cout << "encode took in milliseconds: " << duration << endl;
+    // cout << "encode took in milliseconds: " << duration << endl;
     return res;
 };
 
@@ -696,22 +696,22 @@ vector<byte> OBD3Tables::decode(uint64_t key){
 
 void OBD3Tables::fillTables(){
 
-    // for (int i=0; i<hashSize; i++){
-    //     first.insert(keys[i]);
-    //     second.insert(keys[i]);
-    //     third.insert(keys[i]);
-    // }
-
-    for (int i=0; i<378652; i++){
-        first.insert(keys[i]);
-        second.insert(keys[i]);
-    }
-
-    for (int i=378652; i<hashSize; i++){
+    for (int i=0; i<hashSize; i++){
         first.insert(keys[i]);
         second.insert(keys[i]);
         third.insert(keys[i]);
     }
+
+    // for (int i=0; i<378652; i++){
+    //     first.insert(keys[i]);
+    //     second.insert(keys[i]);
+    // }
+
+    // for (int i=378652; i<hashSize; i++){
+    //     first.insert(keys[i]);
+    //     second.insert(keys[i]);
+    //     third.insert(keys[i]);
+    // }
 
 
 //        cout << "first set contains " << first.size() << endl;
@@ -1161,6 +1161,537 @@ bool OBD3Tables::hasLoop(){
     return false;
 }
 
+
+OBDHybTables::OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd, int thirdsd) : OBDTables(hashSize, c1, fieldSize, gamma, v){
+
+    // srand((unsigned) time(NULL));
+
+    firstSeed = firstsd;
+    secondSeed = secondsd;
+    thirdSeed = thirdsd;
+    // cout << firstSeed << " , " << secondSeed << " , " << thirdSeed << endl;
+
+    auto start = high_resolution_clock::now();
+    createSets();
+    auto end = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(end-start).count();
+
+//    cout << "time in milliseconds for create sets: " << duration << endl;
+//
+//
+
+    variables.resize(3*tableRealSize + gamma, to_GF2E(0));
+    sign.resize(3*tableRealSize, 0);
+
+}
+
+
+
+void OBDHybTables::createSets(){
+    double factorSize = c1/3;
+//    cout<<"factorSize = "<<factorSize<<endl;
+//    cout<<"items in set = "<<hashSize*factorSize<<endl;
+//    cout<<"items in 3 sets = "<<3*hashSize*factorSize<<endl;
+    thirdSize = (1-c1/3/1.2)*hashSize;
+    first = unordered_set<uint64_t, Hasher>(hashSize*factorSize, Hasher(firstSeed));
+    second = unordered_set<uint64_t, Hasher>(hashSize*factorSize, Hasher(secondSeed));
+    // third = unordered_set<uint64_t, Hasher>(hashSize*(factorSize-0.14), Hasher(thirdSeed));
+    third = unordered_set<uint64_t, Hasher>(hashSize*factorSize, Hasher(thirdSeed));
+
+
+    tableRealSize = first.bucket_count();
+    thirdTableSize = third.bucket_count();
+    // cout << "three table kvs: " << thirdSize <<endl;
+    // cout << "third table real size: " << thirdTableSize << endl;
+
+//    cout<<"tableRealSize in each bin = "<<tableRealSize<<endl;
+
+//    while(tableRealSize*3/c1 < hashSize){
+//        first = unordered_set<uint64_t, Hasher>(tableRealSize + 1, Hasher(firstSeed));
+//        second = unordered_set<uint64_t, Hasher>(tableRealSize + 1, Hasher(secondSeed));
+//        third = unordered_set<uint64_t, Hasher>(tableRealSize + 1, Hasher(thirdSeed));
+//
+//        tableRealSize = first.bucket_count();
+//            cout<<"tableRealSize = "<<tableRealSize<<endl;
+//    }
+
+    first.max_load_factor(3);
+    second.max_load_factor(3);
+    third.max_load_factor(3);
+
+//    hashSize = tableRealSize*3/c1;
+
+//        cout<<"new hashSize = "<<hashSize<<endl;
+}
+
+void OBDHybTables::init() {
+
+    OBDTables::init();
+    first.clear();
+    second.clear();
+    third.clear();
+}
+
+vector<uint64_t> OBDHybTables::dec(uint64_t key){
+
+//    auto keyIndices = indices[key];
+//    if(keyIndices.size() == 0) {
+    vector<uint64_t> keyIndices;
+    keyIndices.push_back(first.bucket(key));
+    keyIndices.push_back(tableRealSize + second.bucket(key));
+    keyIndices.push_back(2 * tableRealSize + third.bucket(key));
+
+    auto dhBits = getDHBits(key);
+    uint64_t mask = 1;
+    for (int j = 0; j < gamma; j++) {
+        if ((dhBits & mask) == 1) {
+            keyIndices.push_back(2 * tableRealSize + j); //put 1 in the right vertex of the edge
+        }
+        dhBits = dhBits >> 1;
+    }
+//        indices[key] = move(keyIndices);
+//    }
+
+    return keyIndices;
+}
+
+vector<uint64_t> OBDHybTables::decOptimized(uint64_t key){
+//    auto keyIndices = indices[key];
+//    if(keyIndices.size() == 0) {
+//        cout<<"first time"<<endl;
+    vector<uint64_t> keyIndices(11);
+    keyIndices[0] = first.bucket(key);
+    keyIndices[1] = tableRealSize + second.bucket(key);
+    keyIndices[2] = 2 * tableRealSize + third.bucket(key);
+
+    auto dhBits = getDHBits(key);
+    byte* dhBytes = (byte*) (&dhBits);
+    for (int j = 0; j < 8; j++) {
+        keyIndices[3 + j] = dhBytes[j]; //put 1 in the right vertex of the edge
+    }
+//        indices[key] = move(keyIndices);
+
+//    }
+
+    return keyIndices;
+}
+
+vector<byte> OBDHybTables::decode(uint64_t key){
+    auto indices = dec(key);
+
+    GF2E val(0);
+    for (int j=0; j<indices.size(); j++){
+        val += variables[indices[j]]; //put 1 in the right vertex of the edge
+
+    }
+
+    vector<byte> valBytes(fieldSizeBytes);
+    BytesFromGF2X(valBytes.data(), rep(val), fieldSizeBytes);
+
+    return valBytes;
+}
+
+
+
+void OBDHybTables::fillTables(){
+
+    // for (int i=0; i<hashSize; i++){
+    //     first.insert(keys[i]);
+    //     second.insert(keys[i]);
+    //     third.insert(keys[i]);
+    // }
+
+    for (int i=0; i<(hashSize-thirdSize); i++){
+        first.insert(keys[i]);
+        second.insert(keys[i]);
+    }
+
+    for (int i=hashSize-thirdSize; i<hashSize; i++){
+        first.insert(keys[i]);
+        second.insert(keys[i]);
+        third.insert(keys[i]);
+    }
+
+
+
+
+}
+
+int OBDHybTables::peeling() {
+
+    peelingVector.resize(hashSize);
+    peelingCounter = 0;
+    int counterInLoop = 1;
+
+    queue<int> queueFirst;
+    queue<int> queueSecond;
+    queue<int> queueThird;
+
+
+    for (int position = 0; position < tableRealSize; position++) {
+        if (first.bucket_size(position) == 1) {
+            //Delete the vertex from the graph
+            auto key = *first.begin(position);
+
+            counterInLoop++;
+            peelingVector[peelingCounter++] = key;
+            first.erase(key);
+
+            //Update the second vertex on the edge
+            second.erase(key);
+            third.erase(key);
+        }
+    }
+
+    int bucketInd;
+    //Goes on the second has
+    for (int position = 0; position < tableRealSize; position++) {
+        if (second.bucket_size(position) == 1) {
+            //Delete the vertex from the graph
+            auto key = *second.begin(position);
+            second.erase(key);
+
+            counterInLoop++;
+            peelingVector[peelingCounter++] = key;
+
+            bucketInd = first.bucket(key);
+            first.erase(key);
+
+            if (first.bucket_size(bucketInd) == 1)
+                queueFirst.push(bucketInd);
+
+            //Update the second vertex on the edge
+            third.erase(key);
+        }
+    }
+
+
+    for (int position = 0; position < thirdTableSize; position++) {
+        if (third.bucket_size(position) == 1) {
+            //Delete the vertex from the graph
+            auto key = *third.begin(position);
+            third.erase(key);
+
+            counterInLoop++;
+            peelingVector[peelingCounter++] = key;
+
+            bucketInd = first.bucket(key);
+            first.erase(key);
+
+            if (first.bucket_size(bucketInd) == 1)
+                queueFirst.push(bucketInd);
+
+            bucketInd = second.bucket(key);
+            second.erase(key);
+
+            if (second.bucket_size(bucketInd) == 1)
+                queueSecond.push(bucketInd);
+
+        }
+    }
+
+
+    //handle the queues one by one
+    while (queueFirst.size() != 0 ||
+           queueSecond.size() != 0 ||
+           queueThird.size() != 0) {
+
+        handleQueue(queueFirst, first, queueSecond, second, queueThird, third);
+
+        handleQueue(queueSecond, second, queueFirst, first, queueThird, third);
+
+        handleQueue(queueThird, third, queueFirst, first, queueSecond, second);
+
+    }
+
+
+    cout << hashSize - peelingCounter << endl;
+    // if (peelingCounter != hashSize) {
+    // cout << "2 core contain : " << hashSize - peelingCounter << endl;
+    // }
+    // cout << "peelingCounter : " << peelingCounter << endl;
+    // cout << "hashSize : " << hashSize << endl;
+
+
+    if(reportStatistics==1) {
+
+        statisticsFile << "" << ", \n";
+    }
+
+    if (hashSize - peelingCounter > v){
+        return 0; //Failure
+    }
+    else return 1;
+
+}
+
+void OBDHybTables::handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                                               queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                                               queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2) {
+
+    int bucketInd;
+    for(int i=0; i < queueMain.size(); i++){
+
+        int pos = queueMain.front();
+        queueMain.pop();
+        if(main.bucket_size(pos) == 1) {
+            auto key = *main.begin(pos);
+            main.erase(key);
+
+            peelingVector[peelingCounter++] = key;
+
+            bucketInd = other1.bucket(key);
+            other1.erase(key);
+
+            if (other1.bucket_size(bucketInd) == 1)
+                queueOther1.push(bucketInd);
+
+            bucketInd = other2.bucket(key);
+            other2.erase(key);
+
+            if (other2.bucket_size(bucketInd) == 1)
+                queueOther2.push(bucketInd);
+
+        }
+    }
+}
+
+
+void OBDHybTables::generateExternalToolValues(){
+
+
+    // the rows count is the number of edges left after peeling
+    //columns count is number of vertexes and gamma bits.
+
+    auto start = high_resolution_clock::now();
+    int matrixSize = hashSize - peelingCounter;
+    GF2EMatrix matrix(matrixSize);
+
+    //    cout<<"num of rows = "<<matrixSize<<endl;
+    //    cout<<"num of cols = "<<3*matrixSize + gamma<<endl;
+    GF2EVector values(matrixSize);
+
+    auto end = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(end-start).count();
+
+    //    cout << "construct time in milliseconds for protocol: " << duration << endl;
+
+    unordered_map<uint64_t, int> firstTableCols;
+    unordered_map<uint64_t, int> secondTableCols;
+    unordered_map<uint64_t, int> thirdTableCols;
+
+
+    int rowCounter = 0;
+    int firstColsCounter = 0;
+    int secondColsCounter = 0;
+    int thirdColsCounter = 0;
+    int thirdSize = (1-c1/3/1.2)*hashSize;
+    
+
+    int firstPos, secondPos, thirdPos;
+    for (int i=0; i<tableRealSize; i++){
+        if (first.bucket_size(i) > 1){
+            for (auto key = first.begin(i); key!= first.end(i); ++key){
+
+                matrix[rowCounter].resize(3*matrixSize+gamma);
+                if (firstTableCols.find(i) == firstTableCols.end()){
+                    firstTableCols.insert({i, firstColsCounter});
+                    firstColsCounter++;
+                }
+
+                int secondIndex = second.bucket(*key);
+                if (secondTableCols.find(secondIndex) == secondTableCols.end()){
+                    secondTableCols.insert({secondIndex, secondColsCounter});
+                    secondColsCounter++;
+
+                }
+                int thirdIndex = third.bucket(*key);
+                if (thirdTableCols.find(thirdIndex) == thirdTableCols.end()){
+                    thirdTableCols.insert({thirdIndex, thirdColsCounter});
+                    thirdColsCounter++;
+
+                }
+                firstPos = firstTableCols[i];
+                secondPos = secondTableCols[secondIndex];
+                thirdPos = thirdTableCols[thirdIndex];
+                // cout<<"key "<<*key<<" first hash val = "<<i<< "and index "<<firstTableCols[i]<<" in the first cols"<<endl;
+                // cout<<"key "<<*key<<" second hash val = "<<secondIndex<<"and index "<<secondTableCols[secondIndex]<<" in the second cols"<<endl;
+
+
+                matrix[rowCounter][firstPos] = to_GF2E(1); //put 1 in the left vertex of the edge
+                matrix[rowCounter][matrixSize + secondPos] = to_GF2E(1); //put 1 in the right vertex of the edge
+                matrix[rowCounter][2*matrixSize + thirdPos] = to_GF2E(1); //put 1 in the right vertex of the edge
+                sign[i] = 1;
+                sign[tableRealSize + secondIndex] = 1;
+                sign[2*tableRealSize + thirdIndex] = 1;
+
+                auto dhBits = getDHBits(*key);
+                // cout<<"DH bits: "<<dhBits<<endl;
+                uint64_t mask = 1;
+                for (int j=0; j<gamma; j++){
+                    // cout<<(dhBits & mask)<<" ";
+                    matrix[rowCounter][ 3*matrixSize + j] = to_GF2E(dhBits & mask); //put 1 in the right vertex of the edge
+                    dhBits = dhBits >> 1;
+
+                }
+                // cout<<endl;
+                values[rowCounter] = vals[*key];
+                rowCounter++;
+
+            }
+        }
+    }
+
+
+    if(reportStatistics==1) {
+
+        statisticsFile << rowCounter << ", \n";
+    }
+
+
+
+    GF2EVector variablesSlim(3*matrixSize + gamma);
+    //TODO call the solver and get the results in variables
+    solve_api(matrix, values, variablesSlim, fieldSize);
+
+    for (int i=0; i<tableRealSize; i++) {
+        if (first.bucket_size(i) > 1) {
+            for (auto key = first.begin(i); key != first.end(i); ++key) {
+
+                int secondIndex = second.bucket(*key);
+                int thirdIndex = third.bucket(*key);
+                variables[i] = variablesSlim[firstTableCols[i]];
+                variables[tableRealSize + secondIndex] = variablesSlim[matrixSize + secondTableCols[secondIndex]];
+                variables[2*tableRealSize + thirdIndex] = variablesSlim[2*matrixSize + thirdTableCols[thirdIndex]];
+
+
+            }
+        }
+    }
+
+    for (int i=0; i<gamma; i++){
+        variables[2*tableRealSize + thirdTableSize + i] = variablesSlim[3*matrixSize + i];
+    }
+
+
+}
+
+void OBDHybTables::unpeeling(){
+    //cout<<"in unpeeling"<<endl;
+    uint64_t key;
+    byte* randomVal;
+    GF2E dhBitsVal;
+    GF2X temp;
+
+    while (peelingCounter > 0){
+//            cout<<"key = "<<key<<endl;
+        key = peelingVector[--peelingCounter];
+        auto indices = dec(key);
+        // cout<<"indices = "<<endl;
+        // for (int i=0; i<indices.size(); i++){
+        // cout<<indices[i]<<" ";
+        // }
+        // cout<<endl;
+        dhBitsVal = 0;
+        for (int j=3; j<indices.size(); j++){
+            dhBitsVal += variables[indices[j]]; //put 1 in the right vertex of the edge
+
+//            cout<<"variable in "<<indices[j]<<" place = "<<variables[2*tableRealSize+ indices[j]]<<endl;
+        }
+        if (variables[indices[0]] == 0 && sign[indices[0]] == 0){
+
+            if (variables[indices[1]] == 0 && sign[indices[1]] == 0){
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r ,fieldSizeBytes);
+                variables[indices[1]] = to_GF2E(temp);
+            }
+
+            if (variables[indices[2]] == 0 && sign[indices[2]] == 0) {
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r, fieldSizeBytes);
+                variables[indices[2]] = to_GF2E(temp);
+            }
+
+            variables[indices[0]] = vals[key] + variables[indices[1]] + variables[indices[2]] + dhBitsVal;
+
+//                cout<<"set RANDOM value "<<variables[indices[0]]<<" in index "<<indices[0]<<endl;
+        } else if (variables[indices[1]] == 0 && sign[indices[1]] == 0){
+
+            if (variables[indices[2]] == 0 && sign[indices[2]] == 0) {
+//                randomVal = prg.getPRGBytesEX(fieldSizeBytes);
+//                randomVal = 0;
+                vector<byte> r;
+                r.resize(fieldSizeBytes);
+                GF2XFromBytes(temp, (unsigned char *)&r, fieldSizeBytes);
+                variables[indices[2]] = to_GF2E(temp);
+            }
+
+            variables[indices[1]] = vals[key] + variables[indices[0]] + variables[indices[2]] + dhBitsVal;
+
+        } else if  (variables[indices[2]] == 0 && sign[indices[2]] == 0){
+            variables[indices[2]] = vals[key] + variables[indices[0]] + variables[indices[1]] + dhBitsVal;
+        }
+    }
+//    cout<<"peelingCounter = "<<peelingCounter<<endl;
+
+//    cout<<"variables:"<<endl;
+//    for (int i=0; i<variables.size(); i++){
+//        cout<<"variable["<<i<<"] = "<<variables[i]<<" ";
+//    }
+//    cout<<endl;
+}
+
+bool OBDHybTables::checkOutput(){
+    uint64_t key;
+    GF2E val, dhBitsVal;
+    bool error = false;
+
+
+    for (int i=0; i<hashSize; i++){
+        key = keys[i];
+        val = vals[key];
+
+        auto indices = dec(key);
+
+        dhBitsVal = 0;
+        for (int j=3; j<indices.size(); j++){
+            dhBitsVal += variables[indices[j]]; //put 1 in the right vertex of the edge
+
+        }
+
+        if ((variables[indices[0]] + variables[indices[1]] +  variables[indices[2]] + dhBitsVal) == val) {
+//            if (i%100000 == 0)
+//                cout<<"good value!!! val = "<<val<<endl;
+        } else {//if (!hasLoop()){
+            error = true;
+            cout<<"invalid value :( val = "<<val<<" wrong val = "<<(variables[indices[0]] + variables[indices[1]] + variables[indices[2]] + dhBitsVal)<<endl;
+            cout<<"variables["<<indices[0]<<"] = "<<variables[indices[0]]<<endl;
+            cout<<"variables["<<indices[1]<<"] = "<<variables[indices[1]]<<endl;
+            cout<<"variables["<<indices[2]<<"] = "<<variables[indices[2]]<<endl;
+            cout<<"dhBitsVal = "<<dhBitsVal<<endl;
+        }
+
+    }
+    if (!error){
+        cout<<"success!!!! dictionary is fine."<<endl;
+    }
+    return error;
+}
+
+bool OBDHybTables::hasLoop(){
+    for (int position = 0; position<tableRealSize; position++) {
+        if (first.bucket_size(position) > 1) {
+            return true;
+        }
+    }
+    return false;
+}
 
 
 // 4 hash funcs added

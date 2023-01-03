@@ -6,12 +6,13 @@
 
 #include "gf2e_mat_solve.h"
 #include "ObliviousDictionary.h"
+#include <cstdlib>
 
 typedef unsigned char byte;
 
 int main(int argc, char* argv[]) {
-    int hashSize=pow(2,20), fieldSize=65, gamma = 60, v=20;
-    double c1 = 1.3;
+    int hashSize=pow(2,12), fieldSize=65, gamma = 60, v=20;
+    double c1 = 1.183;
     vector<uint64_t> keys;
     vector<byte> values;
     keys.resize(hashSize);
@@ -29,18 +30,32 @@ int main(int argc, char* argv[]) {
     for (int i=0; i<hashSize; i++){
         values[(i+1)*fieldSizeBytes-1] = values[(i+1)*fieldSizeBytes-1]  >> zeroBits;
     }
-    
-    for (int i=0; i<1; i++) {
-        ObliviousDictionary* dic = new OBD4Tables(hashSize, c1, fieldSize, gamma, v);
+
+    srand((unsigned) time(NULL));
+    auto start = high_resolution_clock::now();
+    for (int i=0; i<100; i++) {
+        int firstseed = rand();
+        int secondseed = rand();
+        int thirdseed = rand();
+        ObliviousDictionary* dic = new OBDHybTables(hashSize, c1, fieldSize, gamma, v, firstseed, secondseed, thirdseed);
         dic->init();
         dic->setKeysAndVals(keys, values);
         dic->encode();
         delete dic;
     }
-    // ObliviousDictionary* dic = new OBD3Tables(hashSize, c1, fieldSize, gamma, v);
+    auto end = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(end-start).count();
+    cout << duration << endl;
+
+    // ObliviousDictionary* dic = new OBDHybTables(hashSize, c1, fieldSize, gamma, v);
     // dic->init();
-    // dic->setKeysAndVals(keys, values);
+    // for (int i=0; i<100; i++) {
+    //     dic->setKeysAndVals(keys, values);
+    // }
     // dic->encode();
+    // delete dic;
+
+
 
     std::cout << "Starting decode" << ' ';
 
