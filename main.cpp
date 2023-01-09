@@ -12,7 +12,7 @@ typedef unsigned char byte;
 
 int main(int argc, char* argv[]) {
     int hashSize=pow(2,12), fieldSize=65, gamma = 60, v=20;
-    double c1 = 1.183;
+    double c1 = 1.18;
     vector<uint64_t> keys;
     vector<byte> values;
     keys.resize(hashSize);
@@ -32,32 +32,24 @@ int main(int argc, char* argv[]) {
     }
 
     srand((unsigned) time(NULL));
-    auto start = high_resolution_clock::now();
-    for (int i=0; i<100; i++) {
+    for (int i=0; i<1; i++) {
         int firstseed = rand();
         int secondseed = rand();
         int thirdseed = rand();
-        ObliviousDictionary* dic = new OBDHybTables(hashSize, c1, fieldSize, gamma, v, firstseed, secondseed, thirdseed);
+        int fourthseed = rand();
+        ObliviousDictionary* dic = new OBD3Tables(hashSize, c1, fieldSize, gamma, v, firstseed, secondseed, thirdseed);
         dic->init();
         dic->setKeysAndVals(keys, values);
         dic->encode();
         delete dic;
     }
-    auto end = high_resolution_clock::now();
-    auto duration = duration_cast<milliseconds>(end-start).count();
-    cout << duration << endl;
-
-    // ObliviousDictionary* dic = new OBDHybTables(hashSize, c1, fieldSize, gamma, v);
-    // dic->init();
-    // for (int i=0; i<100; i++) {
-    //     dic->setKeysAndVals(keys, values);
-    // }
-    // dic->encode();
-    // delete dic;
 
 
 
-    std::cout << "Starting decode" << ' ';
+
+
+
+    // std::cout << "Starting decode" << ' ';
 
     // for (int i=0; i<1; i++) {
     //     vector<byte> bytes = dic->decode(keys[i]);

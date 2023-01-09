@@ -308,7 +308,7 @@ private:
 
 public:
 
-    OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v);
+    OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd, int thirdsd);
 
     void createSets() override;
 
@@ -339,21 +339,43 @@ public:
 
 class OBDHybTables : public OBDTables {
 private:
+    float r;
+    int twohashSize, threehashSize;
+    int twotableRealSize, threetableRealSize;
+    int pos = 0;
     uint64_t thirdTableSize;
     uint64_t thirdSize;
-    uint64_t firstSeed, secondSeed, thirdSeed;
+    uint64_t firstSeed, secondSeed, thirdSeed, fourthSeed, fifthSeed;
     unordered_set<uint64_t, Hasher> first;
     unordered_set<uint64_t, Hasher> second;
     unordered_set<uint64_t, Hasher> third;
+    unordered_set<uint64_t, Hasher> fourth;
+    unordered_set<uint64_t, Hasher> fifth;
+    vector<uint64_t> P1peelingVector;
+    int P1peelingCounter;
+    vector<uint64_t> P2peelingVector;
+    int P2peelingCounter;
 
 
     void handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
                      queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
-                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2);
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueFirst(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueSecond(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
 
 public:
 
-    OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd, int thirdsd);
+    OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, int v, float r, int firstsd, int secondsd, int thirdsd, int fourthsd, int fifthsd);
 
     void createSets() override;
 
@@ -382,49 +404,7 @@ public:
 
 };
 
-class OBD4Tables : public OBDTables {
-private:
-    uint64_t firstSeed, secondSeed, thirdSeed, fourthSeed;
-    unordered_set<uint64_t, Hasher> first;
-    unordered_set<uint64_t, Hasher> second;
-    unordered_set<uint64_t, Hasher> third;
-    unordered_set<uint64_t, Hasher> fourth;
 
-
-    void handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
-                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
-                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
-                     queue<int> &queueOther3,unordered_set<uint64_t, Hasher> &other3);
-
-public:
-
-    OBD4Tables(int hashSize, double c1, int fieldSize, int gamma, int v);
-
-    void createSets() override;
-
-    void init() override;
-
-    void fillTables() override;
-
-    int peeling() override;
-
-    vector<uint64_t> dec(uint64_t key) override;
-
-    vector<uint64_t> decOptimized(uint64_t key) override;
-
-    vector<byte> decode(uint64_t key) override;
-
-    void generateExternalToolValues() override;
-
-    void unpeeling() override;
-
-    bool checkOutput() override;
-
-    bool hasLoop() override;
-
-    int getTableSize() override {return 4*tableRealSize + gamma;}
-
-};
 
 class StarDictionary : public ObliviousDictionary {
 private:
