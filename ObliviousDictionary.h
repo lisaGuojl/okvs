@@ -356,18 +356,35 @@ private:
     vector<uint64_t> P2peelingVector;
     int P2peelingCounter;
 
+    bool handleTwoHashTable(int bucketInd, int n, unordered_set<uint64_t, Hasher> &table);
+    bool handleThreeHashTable(int bucketInd, int n, unordered_set<uint64_t, Hasher> &table);
 
-    void handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
-                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
-                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
-                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
-                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    // void handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+    //                  queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+    //                  queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+    //                  queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+    //                  queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
     void handleQueueFirst(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
                      queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
                      queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
                      queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
                      queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
     void handleQueueSecond(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueThird(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueFourth(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueFifth(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
                      queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
                      queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
                      queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,

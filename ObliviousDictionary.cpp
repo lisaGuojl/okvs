@@ -100,7 +100,7 @@ OBD2Tables::OBD2Tables(int hashSize, double c1, int fieldSize, int gamma, int v)
     auto end = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(end - start).count();
 
-    cout << "time in milliseconds for create sets: " << duration << endl;
+    // cout << "time in milliseconds for create sets: " << duration << endl;
     variables.resize(2 * tableRealSize + gamma, to_GF2E(0));
     sign.resize(2 * tableRealSize, 0);
 }
@@ -1201,7 +1201,7 @@ bool OBD3Tables::checkOutput()
         else
         { // if (!hasLoop()){
             error = true;
-            cout << "invalid value :( val = " << val << " wrong val = " << (variables[indices[0]] + variables[indices[1]] + variables[indices[2]] + dhBitsVal) << endl;
+            std::cout << "invalid value :( val = " << val << " wrong val = " << (variables[indices[0]] + variables[indices[1]] + variables[indices[2]] + dhBitsVal) << endl;
             cout << "variables[" << indices[0] << "] = " << variables[indices[0]] << endl;
             cout << "variables[" << indices[1] << "] = " << variables[indices[1]] << endl;
             cout << "variables[" << indices[2] << "] = " << variables[indices[2]] << endl;
@@ -1241,9 +1241,7 @@ OBDHybTables::OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, in
     auto end = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(end - start).count();
 
-    //    cout << "time in milliseconds for create sets: " << duration << endl;
-    //
-    //
+    // cout << "time in milliseconds for create sets: " << duration << endl;
 
     variables.resize(3 * tableRealSize + gamma, to_GF2E(0));
     sign.resize(3 * tableRealSize, 0);
@@ -1251,7 +1249,7 @@ OBDHybTables::OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, in
 
 void OBDHybTables::createSets()
 {
-    int twohashSize = hashSize * r;
+    int twohashSize = int(hashSize * r);
     int threehashSize = hashSize - twohashSize;
     //    cout<<"factorSize = "<<factorSize<<endl;
     //    cout<<"items in set = "<<hashSize*factorSize<<endl;
@@ -1270,9 +1268,14 @@ void OBDHybTables::createSets()
     twotableRealSize = first.bucket_count();
     threetableRealSize = third.bucket_count();
 
-    //    hashSize = tableRealSize*3/c1;
-
-    //        cout<<"new hashSize = "<<hashSize<<endl;
+    if (twotableRealSize >= threetableRealSize)
+    {
+        cout << "2>=3: " << twotableRealSize << endl;
+    }
+    else
+    {
+        cout << "2<3: " << threetableRealSize << endl;
+    }
 }
 
 void OBDHybTables::init()
@@ -1284,6 +1287,8 @@ void OBDHybTables::init()
     third.clear();
     fourth.clear();
     fifth.clear();
+    P1peelingVector.clear();
+    P2peelingVector.clear();
 }
 
 vector<uint64_t> OBDHybTables::dec(uint64_t key)
@@ -1343,6 +1348,8 @@ vector<byte> OBDHybTables::decode(uint64_t key)
 
 void OBDHybTables::fillTables()
 {
+    int twohashSize = int(hashSize * r);
+    // int threehashSize = hashSize - twohashSize;
     for (int i = 0; i < twohashSize; i++)
     {
         first.insert(keys[i]);
@@ -1360,8 +1367,8 @@ void OBDHybTables::fillTables()
 int OBDHybTables::peeling()
 {
 
-    P1peelingVector.resize(twohashSize);
-    P2peelingVector.resize(threehashSize);
+    P1peelingVector.resize(hashSize);
+    P2peelingVector.resize(hashSize);
     P1peelingCounter = 0;
     P2peelingCounter = 0;
     int counterInLoop = 1;
@@ -1372,153 +1379,192 @@ int OBDHybTables::peeling()
     queue<int> queueFourth;
     queue<int> queueFifth;
 
-    // 2 twotableRealSize >= 3 three table real size
-    if (pos + 3 * threetableRealSize <= 2 * twotableRealSize)
+    // handle the first hash table
+    for (int position = 0; position < twotableRealSize; position++)
     {
-        // handle the first hash table
-        for (int position = 0; position < twotableRealSize; position++)
+        bool result = handleTwoHashTable(position, 0, first);
+        if (result == true)
         {
-            if ((position <= threetableRealSize && first.bucket_size(position) == 1 && third.bucket_size(position) == 0) || (position > threetableRealSize && first.bucket_size(position) == 1 && fourth.bucket_size(position - threetableRealSize) == 0))
-            {
-                // Delete the vertex from the graph
-                auto key = *first.begin(position);
+            // Delete the vertex from the graph
+            auto key = *first.begin(position);
 
-                counterInLoop++;
-                peelingVector[P1peelingCounter++] = key;
+            counterInLoop++;
+            P1peelingVector[P1peelingCounter++] = key;
+            first.erase(key);
+
+            // Update the second vertex on the edge
+            second.erase(key);
+        }
+    }
+    // handle the second hash table
+    for (int position = 0; position < twotableRealSize; position++)
+    {
+        bool result = handleTwoHashTable(position, 1, second);
+        if (result == true)
+        {
+            auto key = *second.begin(position);
+            int secondBucket = 0;
+
+            while (secondBucket <= position)
+            {
+                P1peelingVector[P1peelingCounter++] = key;
+                second.erase(key);
+                int bucket = first.bucket(key);
                 first.erase(key);
 
-                // Update the second vertex on the edge
-                second.erase(key);
-            }
-        }
-
-        // handle the second hash table
-        for (int position = 0; position < twotableRealSize; position++)
-        {
-            if ((position <= 2 * threetableRealSize && second.bucket_size(position) == 1 && fourth.bucket_size(position + twotableRealSize - threetableRealSize) == 0) || (position > 2 * threetableRealSize && second.bucket_size(position) == 1 && fifth.bucket_size(position + twotableRealSize - 2 * threetableRealSize) == 0))
-            {
-                auto key = *second.begin(position);
-                int secondBucket = 0;
-
-                while (secondBucket <= position)
+                result = handleTwoHashTable(bucket, 0, first);
+                if (result == true)
                 {
-                    peelingVector[P1peelingCounter++] = key;
-                    second.erase(key);
-                    int bucket = first.bucket(key);
+                    key = *first.begin(bucket);
+                    P1peelingVector[P1peelingCounter++] = key;
                     first.erase(key);
-                    if ((bucket <= threetableRealSize && first.bucket_size(bucket) == 1 && third.bucket_size(bucket) == 0) || (bucket > threetableRealSize && first.bucket_size(bucket) == 1 && fourth.bucket_size(bucket - threetableRealSize) == 0))
-                    {
-                        key = *first.begin(bucket);
-                        peelingVector[P1peelingCounter++] = key;
-                        first.erase(key);
 
-                        // Update the second vertex on the edge
-                        secondBucket = second.bucket(key);
-                        second.erase(key);
-                        if ((secondBucket <= 2 * threetableRealSize && second.bucket_size(secondBucket) == 1 && fourth.bucket_size(secondBucket + twotableRealSize - threetableRealSize) == 0) || (secondBucket > 2 * threetableRealSize && second.bucket_size(secondBucket) == 1 && fifth.bucket_size(secondBucket + twotableRealSize - 2 * threetableRealSize) == 0))
-                        {
-                            key = *second.begin(secondBucket);
-                        }
-                        else
-                        {
-                            secondBucket = position + 1;
-                        }
+                    // Update the second vertex on the edge
+                    secondBucket = second.bucket(key);
+                    second.erase(key);
+                    result = handleTwoHashTable(secondBucket, 1, second);
+                    if (result == true)
+                    {
+                        key = *second.begin(secondBucket);
                     }
                     else
                     {
                         secondBucket = position + 1;
                     }
                 }
-            }
-        }
-
-        // handle the third hash table
-        for (int position = 0; position < threetableRealSize; position++)
-        {
-            if (third.bucket_size(position) == 1 && first.bucket_size(position) == 0)
-            {
-                // Delete the vertex from the graph
-                auto key = *third.begin(position);
-
-                counterInLoop++;
-                peelingVector[P2peelingCounter++] = key;
-                third.erase(key);
-
-                // Update the second vertex on the edge
-                fourth.erase(key);
-                fifth.erase(key);
-            }
-        }
-
-        // handle the fourth hash table
-        int bucketInd;
-        for (int position = 0; threetableRealSize + position < twotableRealSize; position++)
-        {
-            if ((threetableRealSize + position < twotableRealSize && fourth.bucket_size(position) == 1 && first.bucket_size(position + threetableRealSize) == 0) || (threetableRealSize + position >= twotableRealSize && fourth.bucket_size(position) == 1 && second.bucket_size(position + threetableRealSize - twotableRealSize) == 0))
-            {
-                // Delete the vertex from the graph
-                auto key = *fourth.begin(position);
-                fourth.erase(key);
-
-                counterInLoop++;
-                peelingVector[P2peelingCounter++] = key;
-
-                bucketInd = third.bucket(key);
-                third.erase(key);
-
-                if (third.bucket_size(bucketInd) == 1 && first.bucket_size(bucketInd) == 0)
+                else
                 {
-                    queueThird.push(bucketInd);
-                }
-                if (third.bucket_size(bucketInd) == 0 && first.bucket_size(bucketInd) == 1)
-                {
-                    queueFirst.push(bucketInd);
-                }
-
-                // Update the second vertex on the edge
-                fifth.erase(key);
-            }
-        }
-
-        // handle the fifth hash table
-        for (int position = 0; position < threetableRealSize; position++)
-        {
-            if (fifth.bucket_size(position) == 1 && second.bucket_size(position + 2 * threetableRealSize - twotableRealSize) == 0)
-            {
-                // Delete the vertex from the graph
-                auto key = *fifth.begin(position);
-                fifth.erase(key);
-
-                counterInLoop++;
-                peelingVector[peelingCounter++] = key;
-
-                bucketInd = third.bucket(key);
-                third.erase(key);
-
-                if (third.bucket_size(bucketInd) == 1 && first.bucket_size(bucketInd) == 0)
-                {
-                    queueThird.push(bucketInd);
-                }
-                if (third.bucket_size(bucketInd) == 0 && first.bucket_size(bucketInd) == 1)
-                {
-                    queueFirst.push(bucketInd);
-                }
-
-                bucketInd = fourth.bucket(key);
-                fourth.erase(key);
-
-                if (bucketInd + threetableRealSize < twotableRealSize && fourth.bucket_size(bucketInd) == 0 && first.bucket_size(position + threetableRealSize) == 1)
-                {
-                    queueFourth.push(bucketInd);
-                }
-                if (bucketInd + threetableRealSize >= twotableRealSize && fourth.bucket_size(bucketInd) == 0 && second.bucket_size(position + threetableRealSize - twotableRealSize) == 1)
-                {
-                    queueSecond.push(bucketInd);
+                    secondBucket = position + 1;
                 }
             }
         }
     }
 
+    // handle the third hash table
+
+    for (int position = 0; position < threetableRealSize; position++)
+    {
+        bool result = handleThreeHashTable(position, 0, third);
+        if (result == true)
+        {
+            // Delete the vertex from the graph
+            auto key = *third.begin(position);
+
+            counterInLoop++;
+            P2peelingVector[P2peelingCounter++] = key;
+            third.erase(key);
+
+            // Update the second vertex on the edge
+            fourth.erase(key);
+            fifth.erase(key);
+        }
+    }
+    int bucketInd = 0;
+    for (int position = 0; position < threetableRealSize; position++)
+    {
+        bool result = handleThreeHashTable(position, 1, fourth);
+        if (result == true)
+        {
+            // Delete the vertex from the graph
+            auto key = *fourth.begin(position);
+            fourth.erase(key);
+
+            counterInLoop++;
+            P2peelingVector[P2peelingCounter++] = key;
+
+            bucketInd = third.bucket(key);
+            third.erase(key);
+
+            result = handleThreeHashTable(bucketInd, 0, third);
+            if (result == true)
+            {
+                queueThird.push(bucketInd);
+            }
+            if (bucketInd + pos >= twotableRealSize && bucketInd + pos < 2 * twotableRealSize)
+            {
+                result = handleTwoHashTable(bucketInd + pos - twotableRealSize, 1, second);
+                if (result == true)
+                {
+                    queueSecond.push(bucketInd);
+                }
+            }
+            else if (bucketInd + pos < twotableRealSize)
+            {
+                result = handleTwoHashTable(bucketInd + pos, 0, first);
+                if (result == true)
+                {
+                    queueFirst.push(bucketInd);
+                }
+            }
+
+            // Update the second vertex on the edge
+            fifth.erase(key);
+        }
+    }
+    // handle the fifth hash table
+    for (int position = 0; position < threetableRealSize; position++)
+    {
+        bool result = handleThreeHashTable(position, 2, fifth);
+        if (result == true)
+        {
+            // Delete the vertex from the graph
+            auto key = *fifth.begin(position);
+            fifth.erase(key);
+
+            counterInLoop++;
+            P2peelingVector[P2peelingCounter++] = key;
+
+            bucketInd = third.bucket(key);
+            third.erase(key);
+
+            result = handleThreeHashTable(bucketInd, 0, third);
+            if (result == true)
+            {
+                queueThird.push(bucketInd);
+            }
+            if (bucketInd + pos >= twotableRealSize && bucketInd + pos < 2 * twotableRealSize)
+            {
+                result = handleTwoHashTable(bucketInd + pos - twotableRealSize, 1, second);
+                if (result == true)
+                {
+                    queueSecond.push(bucketInd);
+                }
+            }
+            else if (bucketInd + pos < twotableRealSize)
+            {
+                result = handleTwoHashTable(bucketInd + pos, 0, first);
+                if (result == true)
+                {
+                    queueFirst.push(bucketInd);
+                }
+            }
+
+            bucketInd = fourth.bucket(key);
+            fourth.erase(key);
+
+            result = handleThreeHashTable(bucketInd, 1, fourth);
+            if (result == true)
+            {
+                queueFourth.push(bucketInd);
+            }
+            if (bucketInd + pos + threetableRealSize >= twotableRealSize && bucketInd + pos + threetableRealSize < 2 * twotableRealSize)
+            {
+                result = handleTwoHashTable(bucketInd + pos + threetableRealSize - twotableRealSize, 1, second);
+                if (result == true)
+                {
+                    queueSecond.push(bucketInd);
+                }
+            }
+            else if (bucketInd + pos + threetableRealSize < twotableRealSize)
+            {
+                result = handleTwoHashTable(bucketInd + pos + threetableRealSize, 0, first);
+                if (result == true)
+                {
+                    queueFirst.push(bucketInd);
+                }
+            }
+        }
+    }
     // handle the queues one by one
     while (queueFirst.size() != 0 ||
            queueSecond.size() != 0 ||
@@ -1528,13 +1574,13 @@ int OBDHybTables::peeling()
     {
 
         handleQueueFirst(queueFirst, first, queueSecond, second, queueThird, third, queueFourth, fourth, queueFifth, fifth);
-
-        handleQueue(queueSecond, second, queueFirst, first, queueThird, third, queueFourth, fourth, queueFifth, fifth);
-
-        handleQueue(queueThird, third, queueFirst, first, queueSecond, second, queueFourth, fourth, queueFifth, fifth);
+        handleQueueSecond(queueSecond, second, queueFirst, first, queueThird, third, queueFourth, fourth, queueFifth, fifth);
+        handleQueueThird(queueThird, third, queueFirst, first, queueSecond, second, queueFourth, fourth, queueFifth, fifth);
+        handleQueueFourth(queueFourth, fourth, queueFirst, first, queueSecond, second, queueThird, third, queueFifth, fifth);
+        handleQueueFifth(queueFifth, fifth, queueFirst, first, queueSecond, second, queueThird, third, queueFourth, fourth);
     }
 
-    cout << hashSize - peelingCounter << ",";
+    cout << hashSize - P1peelingCounter - P2peelingCounter << ",";
     // if (peelingCounter != hashSize) {
     // cout << "2 core contain : " << hashSize - peelingCounter << endl;
     // }
@@ -1554,6 +1600,65 @@ int OBDHybTables::peeling()
     }
     else
         return 1;
+}
+
+bool OBDHybTables::handleTwoHashTable(int bucketInd, int n, unordered_set<uint64_t, Hasher> &table)
+{
+    bool res = false;
+    if (bucketInd + n * twotableRealSize < pos || bucketInd + n * twotableRealSize >= pos + 3 * threetableRealSize)
+    {
+        if (table.bucket_size(bucketInd) == 1)
+        {
+            res = true;
+        }
+    }
+    else if (bucketInd + n * tableRealSize < pos + threetableRealSize)
+    {
+        if (table.bucket_size(bucketInd) == 1 && third.bucket_size(bucketInd + n * twotableRealSize - pos) == 0)
+        {
+            res = true;
+        }
+    }
+    else if (bucketInd + n * twotableRealSize < pos + 2 * threetableRealSize)
+    {
+        if (table.bucket_size(bucketInd) == 1 && fourth.bucket_size(bucketInd + n * twotableRealSize - pos - threetableRealSize) == 0)
+        {
+            res = true;
+        }
+    }
+    else if (bucketInd + n * twotableRealSize < pos + 3 * threetableRealSize)
+    {
+        if (table.bucket_size(bucketInd) == 1 && fifth.bucket_size(bucketInd + n * twotableRealSize - pos - 2 * threetableRealSize) == 0)
+        {
+            res = true;
+        }
+    }
+    return res;
+}
+
+bool OBDHybTables::handleThreeHashTable(int bucketInd, int n, unordered_set<uint64_t, Hasher> &table)
+{
+    bool res = false;
+    if (bucketInd + pos + n * threetableRealSize >= 2 * twotableRealSize)
+    {
+        if (table.bucket_size(bucketInd) == 1)
+            res = true;
+    }
+    else if (bucketInd + pos + n * threetableRealSize >= twotableRealSize)
+    {
+        if (table.bucket_size(bucketInd) == 1 && second.bucket_size(bucketInd + pos + n * threetableRealSize - twotableRealSize) == 0)
+        {
+            res = true;
+        }
+    }
+    else
+    {
+        if (table.bucket_size(bucketInd) == 1 && first.bucket_size(bucketInd + pos + n * threetableRealSize) == 0)
+        {
+            res = true;
+        }
+    }
+    return res;
 }
 
 void OBDHybTables::handleQueueFirst(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
@@ -1578,11 +1683,14 @@ void OBDHybTables::handleQueueFirst(queue<int> &queueMain, unordered_set<uint64_
             bucketInd = other1.bucket(key);
             other1.erase(key);
 
-            if (pos >= 2 * twohashSize && other1.bucket_size(bucketInd) == 1)
+            if (bucketInd + twotableRealSize < pos || bucketInd + twotableRealSize >= pos + 3 * threetableRealSize)
             {
-                queueOther1.push(bucketInd);
+                if (other1.bucket_size(bucketInd) == 1)
+                {
+                    queueOther1.push(bucketInd);
+                }
             }
-            else if (pos + threetableRealSize >= 2 * twotableRealSize)
+            else if (bucketInd + tableRealSize < pos + threetableRealSize)
             {
                 if (other1.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 0)
                 {
@@ -1593,67 +1701,24 @@ void OBDHybTables::handleQueueFirst(queue<int> &queueMain, unordered_set<uint64_
                     queueOther2.push(bucketInd);
                 }
             }
-            else if (pos + 2 * threetableRealSize >= 2 * twotableRealSize)
+            else if (bucketInd + twotableRealSize < pos + 2 * threetableRealSize)
             {
-                if (bucketInd + twotableRealSize < pos + threetableRealSize && other1.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 0)
+                if (other1.bucket_size(bucketInd) == 1 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 0)
                 {
                     queueOther1.push(bucketInd);
                 }
-                if (bucketInd + twotableRealSize < pos + threetableRealSize && other1.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 1)
-                {
-                    queueOther2.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + threetableRealSize && other1.bucket_size(bucketInd) == 1 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + threetableRealSize && other1.bucket_size(bucketInd) == 0 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 1)
+                if (other1.bucket_size(bucketInd) == 0 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 1)
                 {
                     queueOther3.push(bucketInd);
                 }
             }
-            else if (pos + threetableRealSize > twotableRealSize && pos + 3 * threetableRealSize <= 2 * twotableRealSize)
+            else if (bucketInd + twotableRealSize < pos + 3 * threetableRealSize)
             {
-                if (bucketInd + twotableRealSize < pos + threetableRealSize && other1.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 0)
+                if (other1.bucket_size(bucketInd) == 1 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 0)
                 {
                     queueOther1.push(bucketInd);
                 }
-                if (bucketInd + twotableRealSize < pos + threetableRealSize && other1.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 1)
-                {
-                    queueOther2.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + threetableRealSize && bucketInd + twotableRealSize < pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 1 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + threetableRealSize && bucketInd + twotableRealSize < pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 0 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 1)
-                {
-                    queueOther3.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 1 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 0 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 1)
-                {
-                    queueOther4.push(bucketInd);
-                }
-            }
-            else if (pos + 3 * threetableRealSize > 2 * twotableRealSize && pos + threetableRealSize < twotableRealSize)
-            {
-                if (bucketInd + twotableRealSize < pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 1 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize < pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 0 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 1)
-                {
-                    queueOther3.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 1 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 0 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 1)
+                if (other1.bucket_size(bucketInd) == 0 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 1)
                 {
                     queueOther4.push(bucketInd);
                 }
@@ -1663,10 +1728,10 @@ void OBDHybTables::handleQueueFirst(queue<int> &queueMain, unordered_set<uint64_
 }
 
 void OBDHybTables::handleQueueSecond(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
-                                    queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
-                                    queue<int> &queueOther2, unordered_set<uint64_t, Hasher> &other2,
-                                    queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
-                                    queue<int> &queueOther4, unordered_set<uint64_t, Hasher> &other4)
+                                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                                     queue<int> &queueOther2, unordered_set<uint64_t, Hasher> &other2,
+                                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                                     queue<int> &queueOther4, unordered_set<uint64_t, Hasher> &other4)
 {
 
     int bucketInd;
@@ -1684,82 +1749,42 @@ void OBDHybTables::handleQueueSecond(queue<int> &queueMain, unordered_set<uint64
             bucketInd = other1.bucket(key);
             other1.erase(key);
 
-            if (pos >= 2 * twohashSize && other1.bucket_size(bucketInd) == 1)
+            if (bucketInd < pos || bucketInd >= pos + 3 * threetableRealSize)
             {
-                queueOther1.push(bucketInd);
-            }
-            else if (pos + threetableRealSize >= 2 * twotableRealSize)
-            {
-                if (other1.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 0)
+                if (other1.bucket_size(bucketInd) == 1)
                 {
                     queueOther1.push(bucketInd);
                 }
-                else if (other1.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 1)
+            }
+            else if (bucketInd < pos + threetableRealSize)
+            {
+                if (other1.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd - pos) == 0)
+                {
+                    queueOther1.push(bucketInd);
+                }
+                else if (other1.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd - pos) == 1)
                 {
                     queueOther2.push(bucketInd);
                 }
             }
-            else if (pos + 2 * threetableRealSize >= 2 * twotableRealSize)
+            else if (bucketInd < pos + 2 * threetableRealSize)
             {
-                if (bucketInd + twotableRealSize < pos + threetableRealSize && other1.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 0)
+                if (other1.bucket_size(bucketInd) == 1 && other3.bucket_size(bucketInd - pos - threetableRealSize) == 0)
                 {
                     queueOther1.push(bucketInd);
                 }
-                if (bucketInd + twotableRealSize < pos + threetableRealSize && other1.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 1)
-                {
-                    queueOther2.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + threetableRealSize && other1.bucket_size(bucketInd) == 1 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + threetableRealSize && other1.bucket_size(bucketInd) == 0 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 1)
+                if (other1.bucket_size(bucketInd) == 0 && other3.bucket_size(bucketInd - pos - threetableRealSize) == 1)
                 {
                     queueOther3.push(bucketInd);
                 }
             }
-            else if (pos + threetableRealSize > twotableRealSize && pos + 3 * threetableRealSize <= 2 * twotableRealSize)
+            else if (bucketInd < pos + 3 * threetableRealSize)
             {
-                if (bucketInd + twotableRealSize < pos + threetableRealSize && other1.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 0)
+                if (other1.bucket_size(bucketInd) == 1 && other4.bucket_size(bucketInd - pos - 2 * threetableRealSize) == 0)
                 {
                     queueOther1.push(bucketInd);
                 }
-                if (bucketInd + twotableRealSize < pos + threetableRealSize && other1.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 1)
-                {
-                    queueOther2.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + threetableRealSize && bucketInd + twotableRealSize < pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 1 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + threetableRealSize && bucketInd + twotableRealSize < pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 0 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 1)
-                {
-                    queueOther3.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 1 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 0 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 1)
-                {
-                    queueOther4.push(bucketInd);
-                }
-            }
-            else if (pos + 3 * threetableRealSize > 2 * twotableRealSize && pos + threetableRealSize < twotableRealSize)
-            {
-                if (bucketInd + twotableRealSize < pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 1 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize < pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 0 && other3.bucket_size(bucketInd + twotableRealSize - pos - threetableRealSize) == 1)
-                {
-                    queueOther3.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 1 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 0)
-                {
-                    queueOther1.push(bucketInd);
-                }
-                if (bucketInd + twotableRealSize >= pos + 2 * threetableRealSize && other1.bucket_size(bucketInd) == 0 && other4.bucket_size(bucketInd + twotableRealSize - pos - 2 * threetableRealSize) == 1)
+                if (other1.bucket_size(bucketInd) == 0 && other4.bucket_size(bucketInd - pos - 2 * threetableRealSize) == 1)
                 {
                     queueOther4.push(bucketInd);
                 }
@@ -1768,12 +1793,11 @@ void OBDHybTables::handleQueueSecond(queue<int> &queueMain, unordered_set<uint64
     }
 }
 
-
-void OBDHybTables::handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
-                               queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
-                               queue<int> &queueOther2, unordered_set<uint64_t, Hasher> &other2,
-                               queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
-                               queue<int> &queueOther4, unordered_set<uint64_t, Hasher> &other4)
+void OBDHybTables::handleQueueThird(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                                    queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                                    queue<int> &queueOther2, unordered_set<uint64_t, Hasher> &other2,
+                                    queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                                    queue<int> &queueOther4, unordered_set<uint64_t, Hasher> &other4)
 {
 
     int bucketInd;
@@ -1787,19 +1811,239 @@ void OBDHybTables::handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Ha
             auto key = *main.begin(pos);
             main.erase(key);
 
-            peelingVector[peelingCounter++] = key;
+            P2peelingVector[P2peelingCounter++] = key;
 
-            bucketInd = other1.bucket(key);
-            other1.erase(key);
+            bucketInd = other3.bucket(key);
+            other3.erase(key);
 
-            if (other1.bucket_size(bucketInd) == 1)
-                queueOther1.push(bucketInd);
+            if (bucketInd + pos + threetableRealSize >= 2 * twotableRealSize)
+            {
+                if (other3.bucket_size(bucketInd) == 1)
+                    queueOther3.push(bucketInd);
+            }
+            else if (bucketInd + pos + threetableRealSize >= twotableRealSize)
+            {
+                if (other3.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + pos + threetableRealSize - twotableRealSize) == 0)
+                {
+                    queueOther3.push(bucketInd);
+                }
+                if (other3.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + pos + threetableRealSize - twotableRealSize) == 1)
+                {
+                    queueOther2.push(bucketInd);
+                }
+            }
+            else
+            {
+                if (other3.bucket_size(bucketInd) == 1 && other1.bucket_size(bucketInd + pos + threetableRealSize) == 0)
+                {
+                    queueOther3.push(bucketInd);
+                }
+                if (other3.bucket_size(bucketInd) == 0 && other1.bucket_size(bucketInd + pos + threetableRealSize) == 1)
+                {
+                    queueOther1.push(bucketInd);
+                }
+            }
 
-            bucketInd = other2.bucket(key);
-            other2.erase(key);
+            bucketInd = other4.bucket(key);
+            other4.erase(key);
 
-            if (other2.bucket_size(bucketInd) == 1)
-                queueOther2.push(bucketInd);
+            if (bucketInd + pos + 2 * threetableRealSize >= 2 * twotableRealSize)
+            {
+                if (other4.bucket_size(bucketInd) == 1)
+                    queueOther4.push(bucketInd);
+            }
+            else if (bucketInd + pos + 2 * threetableRealSize >= twotableRealSize)
+            {
+                if (other4.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + pos + 2 * threetableRealSize - twotableRealSize) == 0)
+                {
+                    queueOther4.push(bucketInd);
+                }
+                if (other4.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + pos + 2 * threetableRealSize - twotableRealSize) == 1)
+                {
+                    queueOther2.push(bucketInd);
+                }
+            }
+            else
+            {
+                if (other4.bucket_size(bucketInd) == 1 && other1.bucket_size(bucketInd + pos + 2 * threetableRealSize) == 0)
+                {
+                    queueOther4.push(bucketInd);
+                }
+                if (other4.bucket_size(bucketInd) == 0 && other1.bucket_size(bucketInd + pos + 2 * threetableRealSize) == 1)
+                {
+                    queueOther1.push(bucketInd);
+                }
+            }
+        }
+    }
+}
+
+void OBDHybTables::handleQueueFourth(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                                     queue<int> &queueOther2, unordered_set<uint64_t, Hasher> &other2,
+                                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                                     queue<int> &queueOther4, unordered_set<uint64_t, Hasher> &other4)
+{
+
+    int bucketInd;
+    for (int i = 0; i < queueMain.size(); i++)
+    {
+
+        int pos = queueMain.front();
+        queueMain.pop();
+        if (main.bucket_size(pos) == 1)
+        {
+            auto key = *main.begin(pos);
+            main.erase(key);
+
+            P2peelingVector[P2peelingCounter++] = key;
+
+            bucketInd = other3.bucket(key);
+            other3.erase(key);
+
+            if (bucketInd + pos >= 2 * twotableRealSize)
+            {
+                if (other3.bucket_size(bucketInd) == 1)
+                    queueOther3.push(bucketInd);
+            }
+            else if (bucketInd + pos >= twotableRealSize)
+            {
+                if (other3.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + pos - twotableRealSize) == 0)
+                {
+                    queueOther3.push(bucketInd);
+                }
+                if (other3.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + pos - twotableRealSize) == 1)
+                {
+                    queueOther2.push(bucketInd);
+                }
+            }
+            else
+            {
+                if (other3.bucket_size(bucketInd) == 1 && other1.bucket_size(bucketInd + pos) == 0)
+                {
+                    queueOther3.push(bucketInd);
+                }
+                if (other3.bucket_size(bucketInd) == 0 && other1.bucket_size(bucketInd + pos) == 1)
+                {
+                    queueOther1.push(bucketInd);
+                }
+            }
+
+            bucketInd = other4.bucket(key);
+            other4.erase(key);
+
+            if (bucketInd + pos + 2 * threetableRealSize >= 2 * twotableRealSize)
+            {
+                if (other4.bucket_size(bucketInd) == 1)
+                    queueOther4.push(bucketInd);
+            }
+            else if (bucketInd + pos + 2 * threetableRealSize >= twotableRealSize)
+            {
+                if (other4.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + pos + 2 * threetableRealSize - twotableRealSize) == 0)
+                {
+                    queueOther4.push(bucketInd);
+                }
+                if (other4.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + pos + 2 * threetableRealSize - twotableRealSize) == 1)
+                {
+                    queueOther2.push(bucketInd);
+                }
+            }
+            else
+            {
+                if (other4.bucket_size(bucketInd) == 1 && other1.bucket_size(bucketInd + pos + 2 * threetableRealSize) == 0)
+                {
+                    queueOther4.push(bucketInd);
+                }
+                if (other4.bucket_size(bucketInd) == 0 && other1.bucket_size(bucketInd + pos + 2 * threetableRealSize) == 1)
+                {
+                    queueOther1.push(bucketInd);
+                }
+            }
+        }
+    }
+}
+
+void OBDHybTables::handleQueueFifth(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                                    queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                                    queue<int> &queueOther2, unordered_set<uint64_t, Hasher> &other2,
+                                    queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                                    queue<int> &queueOther4, unordered_set<uint64_t, Hasher> &other4)
+{
+
+    int bucketInd;
+    for (int i = 0; i < queueMain.size(); i++)
+    {
+
+        int pos = queueMain.front();
+        queueMain.pop();
+        if (main.bucket_size(pos) == 1)
+        {
+            auto key = *main.begin(pos);
+            main.erase(key);
+
+            P2peelingVector[P2peelingCounter++] = key;
+
+            bucketInd = other3.bucket(key);
+            other3.erase(key);
+
+            if (bucketInd + pos >= 2 * twotableRealSize)
+            {
+                if (other3.bucket_size(bucketInd) == 1)
+                    queueOther3.push(bucketInd);
+            }
+            else if (bucketInd + pos >= twotableRealSize)
+            {
+                if (other3.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + pos - twotableRealSize) == 0)
+                {
+                    queueOther3.push(bucketInd);
+                }
+                if (other3.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + pos - twotableRealSize) == 1)
+                {
+                    queueOther2.push(bucketInd);
+                }
+            }
+            else
+            {
+                if (other3.bucket_size(bucketInd) == 1 && other1.bucket_size(bucketInd + pos) == 0)
+                {
+                    queueOther3.push(bucketInd);
+                }
+                if (other3.bucket_size(bucketInd) == 0 && other1.bucket_size(bucketInd + pos) == 1)
+                {
+                    queueOther1.push(bucketInd);
+                }
+            }
+
+            bucketInd = other4.bucket(key);
+            other4.erase(key);
+
+            if (bucketInd + pos + threetableRealSize >= 2 * twotableRealSize)
+            {
+                if (other4.bucket_size(bucketInd) == 1)
+                    queueOther4.push(bucketInd);
+            }
+            else if (bucketInd + pos + threetableRealSize >= twotableRealSize)
+            {
+                if (other4.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + pos + threetableRealSize - twotableRealSize) == 0)
+                {
+                    queueOther4.push(bucketInd);
+                }
+                if (other4.bucket_size(bucketInd) == 0 && other2.bucket_size(bucketInd + pos + threetableRealSize - twotableRealSize) == 1)
+                {
+                    queueOther2.push(bucketInd);
+                }
+            }
+            else
+            {
+                if (other4.bucket_size(bucketInd) == 1 && other1.bucket_size(bucketInd + pos + threetableRealSize) == 0)
+                {
+                    queueOther4.push(bucketInd);
+                }
+                if (other4.bucket_size(bucketInd) == 0 && other1.bucket_size(bucketInd + pos + threetableRealSize) == 1)
+                {
+                    queueOther1.push(bucketInd);
+                }
+            }
         }
     }
 }

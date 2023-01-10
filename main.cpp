@@ -11,7 +11,7 @@
 typedef unsigned char byte;
 
 int main(int argc, char* argv[]) {
-    int hashSize=pow(2,12), fieldSize=65, gamma = 60, v=20;
+    int hashSize=1000, fieldSize=65, gamma = 60, v=20;
     double c1 = 1.18;
     vector<uint64_t> keys;
     vector<byte> values;
@@ -33,16 +33,19 @@ int main(int argc, char* argv[]) {
 
     srand((unsigned) time(NULL));
     for (int i=0; i<1; i++) {
+        float rate = 0.5;
         int firstseed = rand();
         int secondseed = rand();
         int thirdseed = rand();
         int fourthseed = rand();
-        ObliviousDictionary* dic = new OBD3Tables(hashSize, c1, fieldSize, gamma, v, firstseed, secondseed, thirdseed);
+        int fifthseed = rand();
+        ObliviousDictionary* dic = new OBDHybTables(hashSize, c1, fieldSize, gamma, v, rate, firstseed, secondseed, thirdseed, fourthseed, fifthseed);
         dic->init();
         dic->setKeysAndVals(keys, values);
         dic->encode();
         delete dic;
     }
+    cout << endl;
 
 
 
