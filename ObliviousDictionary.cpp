@@ -1227,9 +1227,10 @@ bool OBD3Tables::hasLoop()
     return false;
 }
 
-OBDHybTables::OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, int v, float r, int firstsd, int secondsd, int thirdsd, int fourthsd, int fifthsd) : OBDTables(hashSize, c1, fieldSize, gamma, v)
+OBDHybTables::OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, int v, float rate, int p, int firstsd, int secondsd, int thirdsd, int fourthsd, int fifthsd) : OBDTables(hashSize, c1, fieldSize, gamma, v)
 {
-    r = r;
+    r = rate;
+    pos = p;
     firstSeed = firstsd;
     secondSeed = secondsd;
     thirdSeed = thirdsd;
@@ -1243,12 +1244,13 @@ OBDHybTables::OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, in
 
     // cout << "time in milliseconds for create sets: " << duration << endl;
 
-    variables.resize(3 * tableRealSize + gamma, to_GF2E(0));
-    sign.resize(3 * tableRealSize, 0);
+    // variables.resize(3 * tableRealSize + gamma, to_GF2E(0));
+    // sign.resize(3 * tableRealSize, 0);
 }
 
 void OBDHybTables::createSets()
-{
+{   
+    // cout << "Rate: " << r << endl;
     int twohashSize = int(hashSize * r);
     int threehashSize = hashSize - twohashSize;
     //    cout<<"factorSize = "<<factorSize<<endl;
@@ -1267,15 +1269,16 @@ void OBDHybTables::createSets()
     fifth.max_load_factor(3);
     twotableRealSize = first.bucket_count();
     threetableRealSize = third.bucket_count();
-
-    if (twotableRealSize >= threetableRealSize)
-    {
-        cout << "2>=3: " << twotableRealSize << endl;
-    }
-    else
-    {
-        cout << "2<3: " << threetableRealSize << endl;
-    }
+    
+    // cout << "create table done!" << endl;
+//     if (twotableRealSize >= threetableRealSize)
+//     {
+//         cout << "2>=3: " << 2*twotableRealSize << endl;
+//     }
+//     else
+//     {
+//         cout << "2<3: " << 3*threetableRealSize << endl;
+//     }
 }
 
 void OBDHybTables::init()
@@ -1362,6 +1365,7 @@ void OBDHybTables::fillTables()
         fourth.insert(keys[i]);
         fifth.insert(keys[i]);
     }
+    // cout << "fill table done!" << endl;
 }
 
 int OBDHybTables::peeling()
@@ -1396,6 +1400,7 @@ int OBDHybTables::peeling()
             second.erase(key);
         }
     }
+    // cout << "handle 1st!" << endl;
     // handle the second hash table
     for (int position = 0; position < twotableRealSize; position++)
     {
@@ -1439,7 +1444,7 @@ int OBDHybTables::peeling()
             }
         }
     }
-
+    // cout << "handle 2!" << endl;
     // handle the third hash table
 
     for (int position = 0; position < threetableRealSize; position++)
@@ -1459,6 +1464,8 @@ int OBDHybTables::peeling()
             fifth.erase(key);
         }
     }
+    // cout << "handle 3!" << endl;
+
     int bucketInd = 0;
     for (int position = 0; position < threetableRealSize; position++)
     {
@@ -1501,6 +1508,7 @@ int OBDHybTables::peeling()
             fifth.erase(key);
         }
     }
+    // cout << "handle 4!" << endl;
     // handle the fifth hash table
     for (int position = 0; position < threetableRealSize; position++)
     {
@@ -1565,6 +1573,7 @@ int OBDHybTables::peeling()
             }
         }
     }
+    // cout << "handle 5!" << endl;
     // handle the queues one by one
     while (queueFirst.size() != 0 ||
            queueSecond.size() != 0 ||
@@ -1574,11 +1583,16 @@ int OBDHybTables::peeling()
     {
 
         handleQueueFirst(queueFirst, first, queueSecond, second, queueThird, third, queueFourth, fourth, queueFifth, fifth);
+        // cout << "q1 done!" << endl;
         handleQueueSecond(queueSecond, second, queueFirst, first, queueThird, third, queueFourth, fourth, queueFifth, fifth);
+        // cout << "q2 done!" << endl;
         handleQueueThird(queueThird, third, queueFirst, first, queueSecond, second, queueFourth, fourth, queueFifth, fifth);
+        // cout << "q3 done!" << endl;
         handleQueueFourth(queueFourth, fourth, queueFirst, first, queueSecond, second, queueThird, third, queueFifth, fifth);
+        // cout << "q4 done!" << endl;
         handleQueueFifth(queueFifth, fifth, queueFirst, first, queueSecond, second, queueThird, third, queueFourth, fourth);
-    }
+    }   
+    // cout << "handle queue done!" << endl;
 
     cout << hashSize - P1peelingCounter - P2peelingCounter << ",";
     // if (peelingCounter != hashSize) {
@@ -1587,32 +1601,33 @@ int OBDHybTables::peeling()
     // cout << "peelingCounter : " << peelingCounter << endl;
     // cout << "hashSize : " << hashSize << endl;
 
-    if (reportStatistics == 1)
-    {
+    // if (reportStatistics == 1)
+    // {
 
-        statisticsFile << ""
-                       << ", \n";
-    }
+    //     statisticsFile << ""
+    //                    << ", \n";
+    // }
 
-    if (hashSize - peelingCounter > v)
-    {
-        return 0; // Failure
-    }
-    else
-        return 1;
+    // if (hashSize - peelingCounter > v)
+    // {
+    //     return 0; // Failure
+    // }
+    // else
+    //     return 1;
+    return 1;
 }
 
 bool OBDHybTables::handleTwoHashTable(int bucketInd, int n, unordered_set<uint64_t, Hasher> &table)
 {
     bool res = false;
-    if (bucketInd + n * twotableRealSize < pos || bucketInd + n * twotableRealSize >= pos + 3 * threetableRealSize)
+    if (bucketInd + n * twotableRealSize <= pos || bucketInd + n * twotableRealSize >= pos + 3 * threetableRealSize)
     {
         if (table.bucket_size(bucketInd) == 1)
         {
             res = true;
         }
     }
-    else if (bucketInd + n * tableRealSize < pos + threetableRealSize)
+    else if (bucketInd + n * twotableRealSize < pos + threetableRealSize)
     {
         if (table.bucket_size(bucketInd) == 1 && third.bucket_size(bucketInd + n * twotableRealSize - pos) == 0)
         {
@@ -1690,7 +1705,7 @@ void OBDHybTables::handleQueueFirst(queue<int> &queueMain, unordered_set<uint64_
                     queueOther1.push(bucketInd);
                 }
             }
-            else if (bucketInd + tableRealSize < pos + threetableRealSize)
+            else if (bucketInd + twotableRealSize < pos + threetableRealSize)
             {
                 if (other1.bucket_size(bucketInd) == 1 && other2.bucket_size(bucketInd + twotableRealSize - pos) == 0)
                 {

@@ -309,7 +309,7 @@ private:
 public:
 
     OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd, int thirdsd);
-
+   
     void createSets() override;
 
     void init() override;
@@ -342,7 +342,7 @@ private:
     float r;
     int twohashSize, threehashSize;
     int twotableRealSize, threetableRealSize;
-    int pos = 0;
+    int pos;
     uint64_t thirdTableSize;
     uint64_t thirdSize;
     uint64_t firstSeed, secondSeed, thirdSeed, fourthSeed, fifthSeed;
@@ -392,8 +392,18 @@ private:
 
 public:
 
-    OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, int v, float r, int firstsd, int secondsd, int thirdsd, int fourthsd, int fifthsd);
-
+    OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, int v, float rate, int p, int firstsd, int secondsd, int thirdsd, int fourthsd, int fifthsd);
+    ~OBDHybTables() {
+        first.clear();
+        second.clear();
+        third.clear();
+        fourth.clear();
+        fifth.clear();
+        P1peelingVector.clear();
+        P2peelingVector.clear();
+        variables.clear();
+        sign.clear();
+    };
     void createSets() override;
 
     void init() override;
