@@ -19,7 +19,6 @@
 #include <chrono>
 #include <queue>
 #include <fstream>
-#include <cstdlib>
 typedef unsigned char byte;
 
 using namespace std::chrono;
@@ -70,15 +69,15 @@ public:
          GF2X temp;
          for (int i=0; i < hashSize; i++){
 
-        // for (int j=0; j<fieldSizeBytes; j++){
-        //     cout<<"val in bytes = "<<(int)(values[i*fieldSizeBytes + j]) << " ";
-        // }
-        // cout<<endl;
+//        for (int j=0; j<fieldSizeBytes; j++){
+//            cout<<"val in bytes = "<<(int)(values[i*fieldSizeBytes + j]) << " ";
+//        }
+//        cout<<endl;
 
              GF2XFromBytes(temp, values.data() + i*fieldSizeBytes ,fieldSizeBytes);
              vals.insert({keys[i], to_GF2E(temp)});
-        // auto tempval = to_GF2E(temp);
-        // cout<<"val in GF2E = "<<tempval<<endl;
+//        auto tempval = to_GF2E(temp);
+//        cout<<"val in GF2E = "<<tempval<<endl;
 
 //        vector<byte> tempvec(fieldSizeBytes);
 //        BytesFromGF2X(tempvec.data(), rep(tempval), fieldSizeBytes);
@@ -268,7 +267,7 @@ private:
     unordered_set<uint64_t, Hasher> second;
 
 public:
-    OBD2Tables(int hashSize, double c1, int fieldSize, int gamma, int v);
+    OBD2Tables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd);
 
     void createSets() override;
 
@@ -308,8 +307,8 @@ private:
 
 public:
 
-    OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd, int thirdsd);
-   
+    OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v);
+
     void createSets() override;
 
     void init() override;
@@ -430,7 +429,6 @@ public:
 
 
 };
-
 
 
 class StarDictionary : public ObliviousDictionary {

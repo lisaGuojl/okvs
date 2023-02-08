@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/gjl/psi/OBDBasedPSI/./xxHash
+CXX_INCLUDES = -I/home/gjl/psi/okvs/./xxHash
 
 CXX_FLAGS =  -g -O3 -msse4.2 -fPIE
 

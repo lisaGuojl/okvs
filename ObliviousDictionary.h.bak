@@ -19,6 +19,7 @@
 #include <chrono>
 #include <queue>
 #include <fstream>
+#include <cstdlib>
 typedef unsigned char byte;
 
 using namespace std::chrono;
@@ -307,8 +308,8 @@ private:
 
 public:
 
-    OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v);
-
+    OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd, int thirdsd);
+   
     void createSets() override;
 
     void init() override;
@@ -335,6 +336,102 @@ public:
 
 
 };
+
+class OBDHybTables : public OBDTables {
+private:
+    float r;
+    int twohashSize, threehashSize;
+    int twotableRealSize, threetableRealSize;
+    int pos;
+    uint64_t thirdTableSize;
+    uint64_t thirdSize;
+    uint64_t firstSeed, secondSeed, thirdSeed, fourthSeed, fifthSeed;
+    unordered_set<uint64_t, Hasher> first;
+    unordered_set<uint64_t, Hasher> second;
+    unordered_set<uint64_t, Hasher> third;
+    unordered_set<uint64_t, Hasher> fourth;
+    unordered_set<uint64_t, Hasher> fifth;
+    vector<uint64_t> P1peelingVector;
+    int P1peelingCounter;
+    vector<uint64_t> P2peelingVector;
+    int P2peelingCounter;
+
+    bool handleTwoHashTable(int bucketInd, int n, unordered_set<uint64_t, Hasher> &table);
+    bool handleThreeHashTable(int bucketInd, int n, unordered_set<uint64_t, Hasher> &table);
+
+    // void handleQueue(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+    //                  queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+    //                  queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+    //                  queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+    //                  queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueFirst(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueSecond(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueThird(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueFourth(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+    void handleQueueFifth(queue<int> &queueMain, unordered_set<uint64_t, Hasher> &main,
+                     queue<int> &queueOther1, unordered_set<uint64_t, Hasher> &other1,
+                     queue<int> &queueOther2,unordered_set<uint64_t, Hasher> &other2,
+                     queue<int> &queueOther3, unordered_set<uint64_t, Hasher> &other3,
+                     queue<int> &queueOther4,unordered_set<uint64_t, Hasher> &other4);
+
+public:
+
+    OBDHybTables(int hashSize, double c1, int fieldSize, int gamma, int v, float rate, int p, int firstsd, int secondsd, int thirdsd, int fourthsd, int fifthsd);
+    ~OBDHybTables() {
+        first.clear();
+        second.clear();
+        third.clear();
+        fourth.clear();
+        fifth.clear();
+        P1peelingVector.clear();
+        P2peelingVector.clear();
+        variables.clear();
+        sign.clear();
+    };
+    void createSets() override;
+
+    void init() override;
+
+    vector<uint64_t> dec(uint64_t key) override;
+
+    vector<uint64_t> decOptimized(uint64_t key) override;
+
+    vector<byte> decode(uint64_t key) override;
+
+    void fillTables() override;
+
+    int peeling() override;
+
+    void generateExternalToolValues() override;
+
+    void unpeeling() override;
+
+    bool checkOutput() override;
+
+    bool hasLoop() override;
+
+    int getTableSize() override {return 3*tableRealSize + gamma;}
+
+
+};
+
+
 
 class StarDictionary : public ObliviousDictionary {
 private:

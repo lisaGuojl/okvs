@@ -3,6 +3,7 @@
         "unordered_map": "cpp",
         "unordered_set": "cpp",
         "iostream": "cpp",
-        "new": "cpp"
+        "new": "cpp",
+        "chrono": "cpp"
     }
 }
