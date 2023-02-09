@@ -11,7 +11,7 @@
 typedef unsigned char byte;
 
 int main(int argc, char* argv[]) {
-    int hashSize=10000, fieldSize=65, gamma = 60, v=20;
+    int hashSize=pow(2,20), fieldSize=65, gamma = 60, v=20;
     double c1 = 2.4;
     vector<uint64_t> keys;
     vector<byte> values;
@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
         int thirdseed = rand();
         int fourthseed = rand();
         int fifthseed = rand();
-        int pos = 6000;
+        int pos = int(pow(2,20)*0.3*2.4);
         // ObliviousDictionary* dic = new OBD2Tables(hashSize, c1, fieldSize, gamma, v, firstseed, secondseed);
         ObliviousDictionary* dic = new OBDHybTables(hashSize, c1, fieldSize, gamma, v, rate, pos, firstseed, secondseed, thirdseed, fourthseed, fifthseed);
         dic->init();

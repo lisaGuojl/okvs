@@ -4,6 +4,7 @@
         "unordered_set": "cpp",
         "iostream": "cpp",
         "new": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "cmath": "cpp"
     }
 }
