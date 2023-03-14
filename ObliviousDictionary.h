@@ -307,7 +307,7 @@ private:
 
 public:
 
-    OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v);
+    OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd, int thirdsd);
 
     void createSets() override;
 

@@ -563,11 +563,11 @@ bool OBD2Tables::hasLoop(){
     return false;
 }
 
-OBD3Tables::OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v) : OBDTables(hashSize, c1, fieldSize, gamma, v){
+OBD3Tables::OBD3Tables(int hashSize, double c1, int fieldSize, int gamma, int v, int firstsd, int secondsd, int thirdsd) : OBDTables(hashSize, c1, fieldSize, gamma, v){
 
-    firstSeed = 1;
-    secondSeed = 2;
-    thirdSeed = 3;
+    firstSeed = firstsd;
+    secondSeed = secondsd;
+    thirdSeed = thirdsd;
 
     auto start = high_resolution_clock::now();
     createSets();
@@ -1169,7 +1169,7 @@ StarDictionary::StarDictionary(int numItems, double c1, double c2, int q, int fi
 
     cout<<"v inside bin = "<<0.5*log(numItemsForBin)<<endl;
     for (int i=0; i<q+1; i++){
-        bins[i] = new OBD3Tables(numItemsForBin, c1, fieldSize, gamma, v);
+        bins[i] = new OBD3Tables(numItemsForBin, c1, fieldSize, gamma, v, 1, 2, 3);
     }
 
     int tableRealSize = bins[0]->getTableSize();
@@ -2417,7 +2417,6 @@ void OBDHybTables::handleQueueFifth(queue<int> &queueMain, unordered_set<uint64_
                     queueOther1.push(bucketInd + pos);
                 }
             }
-            // cout << "handle other3 done!" << endl;
 
             bucketInd = other4.bucket(key);
             other4.erase(key);
@@ -2449,7 +2448,7 @@ void OBDHybTables::handleQueueFifth(queue<int> &queueMain, unordered_set<uint64_
                     queueOther1.push(bucketInd + pos + threetableRealSize);
                 }
             }
-            // cout << "handle other4 done!" << endl;
+            
         }
     }
 }
